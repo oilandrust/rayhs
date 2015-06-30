@@ -8,7 +8,7 @@ module Vec (Vec(Vec)
            , normalize
            , toRGB) where
 
-import Color
+import Color hiding (mul)
 
 data Vec = Vec Float Float Float deriving (Eq, Show)
 instance Num Vec where

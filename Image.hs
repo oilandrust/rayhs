@@ -1,4 +1,6 @@
 module Image (Image(Image)
+             , generatePixels
+             , mapPixels
              , gradient
              , solidImage
              , emptyImage
