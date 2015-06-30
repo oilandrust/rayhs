@@ -1,7 +1,14 @@
+# emacs backup things
 *~
 /**/*~
 
+# Haskell intermediate things
 *.hi
 *.o
+
+# Output
 *.ppm
+
+# Build things
 dist/
+rayTracer
