@@ -1,5 +1,8 @@
 module Vec (Vec(Vec)
            , o
+           , xAxis
+           , yAxis
+           , zAxis
            , mul
            , dot
            , sqrLen
@@ -19,6 +22,15 @@ instance Num Vec where
 
 o :: Vec
 o = Vec 0 0 0
+
+xAxis :: Vec
+xAxis = Vec 1 0 0
+
+yAxis :: Vec
+yAxis = Vec 0 1 0
+
+zAxis :: Vec
+zAxis = Vec 0 0 1
 
 mul :: Float -> Vec -> Vec
 mul l (Vec x y z) = Vec (l*x) (l*y) (l*z)
