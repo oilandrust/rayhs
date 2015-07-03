@@ -95,40 +95,51 @@ rayFromPixel w h (Perspective f pw ph n) x y = Ray o d where
     False -> (aspect*ph, ph)
   
 diffuse :: Color -> Color -> Vec -> Vec -> Color
-diffuse cd lc l n = C.mul (max (dot l n) 0) (cd * lc)
- 
-tracePixel :: [Shape]-> [Light] -> Float -> Float -> (Float, Float) -> Color
-tracePixel scene lights w h (i, j) =
-  let inter = closestIntersection scene ray
+diffuse cd lc l n = C.mul ((max (dot l n) 0) * piInv) (cd * lc)
+
+accumDiffuse :: [Shape] -> [Light] -> Vec -> Vec -> Color -> Color
+accumDiffuse sc lts p n color =
+  foldl (\c l -> c + (diffFromLight l)) black lts
+  where diffFromLight light =
+          let inter = closestIntersection sc (Ray (p+(Vec.mul 0.0001 ld)) ld)
+          in case inter of
+            Just _ -> black
+            Nothing -> (diffuse color (col light) ld n)
+          where ld = dir light
+        
+traceRay :: [Shape] -> [Light] -> Ray -> Color
+traceRay shapes lights ray =
+  let inter = closestIntersection shapes ray
   in case inter of
-    Just (Hit p n _ color) ->
-      (C.mul 0.3 color) +
-      foldl (\c l -> c + (diffuse (C.mul 0.7 color) (col l) (dir l) n))
-      black lights
-    Nothing -> gray 0.1
+    Just (Hit p n _ c) -> 
+      (C.mul 0.2 c) + (accumDiffuse shapes lights p n c)
+    Nothing -> black
+                    
+tracePixel :: [Shape]-> [Light] -> Float -> Float -> (Float, Float) -> Color
+tracePixel scene lights w h (i, j) = traceRay scene lights ray
   where ray = (rayFromPixel w h
                (Perspective 0 2 2 0.1)
-               i j) 
-          
+               i j)
+
 rayTrace :: Int -> Int -> Image
 rayTrace w h = generatePixels w h
                (tracePixel
-                [Shape (Sphere (Vec 0.3 0.4 1) 0.5) red,
+                [Shape (Sphere (Vec 0.3 (-0.5) 1.5) 0.5) red,
                  Shape (Sphere (Vec (-0.4) 0.25 0.7) 0.3) blue,
                  Shape (Sphere (Vec (-0.3) (-0.4) 1) 0.2) green,
-                 Shape (Plane (Vec 0 0 2) (-zAxis)) white,
-                 Shape (Plane (Vec 1 0 0) (-xAxis)) green,
-                 Shape (Plane (Vec (-1) 0 0) (xAxis)) red,
-                 Shape (Plane (Vec 0 1 0) (-yAxis)) white,
+                 --Shape (Plane (Vec 0 0 2) (-zAxis)) white,
+                 --Shape (Plane (Vec 1 0 0) (-xAxis)) green,
+                 --Shape (Plane (Vec (-1) 0 0) (xAxis)) red,
+                 --Shape (Plane (Vec 0 1 0) (-yAxis)) white,
                  Shape (Plane (Vec 0 (-1) 0) yAxis) white]
-                [Directional (normalize (Vec 1 0.7 (-1))) (gray 0.6),
-                 Directional (normalize (Vec (-0.7) 1 (-1))) (RGB 0.7 0.7 0.5)]
+                [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
+                 Directional (normalize (Vec (-0.7) 1 (-1))) (RGB 0.8 0.8 0.7)]
                 (fromIntegral w)
                 (fromIntegral h))
 
 main :: IO ()
 main = do
-  let output = rayTrace 330 256
+  let output = rayTrace 512 512
   writePPM "out.ppm" output
   putStrLn "done!"
 
