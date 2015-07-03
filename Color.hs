@@ -10,6 +10,13 @@ module Color (Color(RGB)
 {- Color -}
 data Color = RGB Float Float Float deriving Show
 
+instance Num Color where
+  (RGB x1 y1 z1) + (RGB x2 y2 z2) = (RGB (x1+x2) (y1+y2) (z1+z2))
+  (RGB x1 y1 z1) * (RGB x2 y2 z2) = (RGB (x1*x2) (y1*y2) (z1*z2))
+  (RGB x1 y1 z1) - (RGB x2 y2 z2) = (RGB (x1-x2) (y1-y2) (z1-z2))
+  negate (RGB x y z) = (RGB (-x) (-y) (-z))  
+
+
 black :: Color
 black = RGB 0 0 0
 

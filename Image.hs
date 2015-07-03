@@ -23,9 +23,10 @@ mapPixels f (Image w h px) = Image w h (V.zipWith f px
                                         (V.fromList indices))
   where indices = [(x,y) | y <- [0..h-1], x <- [0..w-1]] 
 
-generatePixels :: Int -> Int -> ((Int, Int) -> Color) -> Image
+generatePixels :: Int -> Int -> ((Float, Float) -> Color) -> Image
 generatePixels w h f = Image w h (V.generate (w*h)
-                                  (\i -> f (i `mod` w, i `div` w)))
+                                  (\i -> f ((fromIntegral (i `mod` w)),
+                                            (fromIntegral (i `div` w)))))
 
 gradient :: Int -> Int -> Image
 gradient w h = Image w h (V.generate (w*h)
@@ -38,7 +39,7 @@ emptyImage :: Int -> Int -> Image
 emptyImage w h = solidImage w h black
 
 toIntC :: Float -> Int
-toIntC c = truncate (255 * c)
+toIntC c = truncate (255 * (min c 1))
 
 formatPixelsPPM :: Image -> String
 formatPixelsPPM (Image w h pix) = concat $ intercalate ["\n"] 

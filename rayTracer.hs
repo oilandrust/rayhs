@@ -25,6 +25,8 @@ data Geometry = Sphere { center :: Vec, radius :: Float }
                                                     
 data Shape = Shape Geometry Color deriving Show
 
+data Light = Directional { dir :: Vec, col :: Color } deriving Show
+
 normalAt :: Geometry -> Vec -> Vec
 normalAt (Sphere o r) v = normalize (v - o)
 normalAt (Plane p n) _ = n
@@ -54,7 +56,7 @@ intersection ray@(Ray o d) (Shape s@(Sphere ct r) color)
         n0 = normalAt s p0
 
 intersection ray@(Ray o d) (Shape (Plane p n) color)
-  | (abs dDotn) > 0 = Just (Hit (rayAt ray t) n t color)
+  | (abs dDotn) > 0 && t > 0 = Just (Hit (rayAt ray t) n t color)
   | otherwise = Nothing
     where dDotn = dot d n
           t = dot n (p - o) / dDotn
@@ -69,43 +71,64 @@ closestIntersection scene r = case hits of
   _  -> Just $ minimumBy (compare `on` t) hits
   where hits = intersections scene r
 
-data Projection = Orthographic { width :: Float
-                               , height :: Float} deriving Show
+data Projection = Orthographic { width :: Float, height :: Float}
+                | Perspective { fovy :: Float
+                              , width :: Float
+                              , height :: Float
+                              , near :: Float }
+                  deriving Show
 
-rayFromPixel :: Int -> Int -> Projection -> Int -> Int -> Ray
-rayFromPixel w h (Orthographic pw ph) x y = Ray o (Vec 0 0 (-1)) where
-  o = Vec (pw * (fx - (fw/2)) / fw)
-      (ph * ((-fy) + (fh/2)) / fh) 0
-  fw = fromIntegral w
-  fh = fromIntegral h
-  fx = fromIntegral x
-  fy = fromIntegral y
+rayFromPixel :: Float -> Float -> Projection -> Float -> Float -> Ray
+rayFromPixel w h (Orthographic pw ph) x y = Ray o (Vec 0 0 1) where
+  o = Vec (apw * (x - (w/2)) / w) (aph * ((-y) + (h/2)) / h) 0
+  aspect = w / h
+  (apw, aph) = case (aspect>1) of
+    True -> (pw, pw/aspect)
+    False -> (aspect*ph, ph)
+
+rayFromPixel w h (Perspective f pw ph n) x y = Ray o d where
+  o = Vec (apw * (x - (w/2)) / w) (aph * ((-y) + (h/2)) / h) 0
+  d = normalize $ (o - (Vec 0 0 (-2)))
+  aspect = w / h
+  (apw, aph) = case (aspect>1) of
+    True -> (pw, pw/aspect)
+    False -> (aspect*ph, ph)
   
-diffuse :: Color -> Vec -> Vec -> Color
-diffuse cd l n = C.mul (dot l n) cd
+diffuse :: Color -> Color -> Vec -> Vec -> Color
+diffuse cd lc l n = C.mul (max (dot l n) 0) (cd * lc)
  
-tracePixel :: [Shape] -> Int -> Int -> (Int, Int) -> Color
-tracePixel scene w h (i, j) =
+tracePixel :: [Shape]-> [Light] -> Float -> Float -> (Float, Float) -> Color
+tracePixel scene lights w h (i, j) =
   let inter = closestIntersection scene ray
   in case inter of
-    Just (Hit _ n _ color) -> diffuse color (normalize (Vec 1 1 1)) n
-    Nothing -> gray 0.4
+    Just (Hit p n _ color) ->
+      (C.mul 0.3 color) +
+      foldl (\c l -> c + (diffuse (C.mul 0.7 color) (col l) (dir l) n))
+      black lights
+    Nothing -> gray 0.1
   where ray = (rayFromPixel w h
-               (Orthographic 2.0 2.0)
+               (Perspective 0 2 2 0.1)
                i j) 
           
 rayTrace :: Int -> Int -> Image
 rayTrace w h = generatePixels w h
                (tracePixel
-                [Shape (Sphere (Vec  0.3    0.4  (-1)) 0.5) red,
-                 Shape (Sphere (Vec (-0.4)  0.25   (-0.7)) 0.3) blue,
-                 Shape (Sphere (Vec (-0.3) (-0.4) (-1)) 0.2) green,
-                 Shape (Plane (Vec 0 0 (-2)) zAxis) red]
-                w h)
+                [Shape (Sphere (Vec 0.3 0.4 1) 0.5) red,
+                 Shape (Sphere (Vec (-0.4) 0.25 0.7) 0.3) blue,
+                 Shape (Sphere (Vec (-0.3) (-0.4) 1) 0.2) green,
+                 Shape (Plane (Vec 0 0 2) (-zAxis)) white,
+                 Shape (Plane (Vec 1 0 0) (-xAxis)) green,
+                 Shape (Plane (Vec (-1) 0 0) (xAxis)) red,
+                 Shape (Plane (Vec 0 1 0) (-yAxis)) white,
+                 Shape (Plane (Vec 0 (-1) 0) yAxis) white]
+                [Directional (normalize (Vec 1 0.7 (-1))) (gray 0.6),
+                 Directional (normalize (Vec (-0.7) 1 (-1))) (RGB 0.7 0.7 0.5)]
+                (fromIntegral w)
+                (fromIntegral h))
 
 main :: IO ()
 main = do
-  let output = rayTrace 256 256
+  let output = rayTrace 330 256
   writePPM "out.ppm" output
   putStrLn "done!"
 
