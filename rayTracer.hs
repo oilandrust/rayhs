@@ -1,5 +1,20 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE OverloadedStrings, RecordWildCards #-}
+
+{-
+TOTO:
+-Specular reflections
+-Specular refractions
+-Point lights
+-Recursive traycing
+-Multisampling
+-Texturing
+-Triangle Mesh
+-kDTree
+-Glossy BRDFs
+-Path Tracing
+-}
+
 module Main where
 
 import Data.Maybe
@@ -47,10 +62,10 @@ intersection ray@(Ray o d) (Shape s@(Sphere ct r) color)
   | delta < 0.0 = Nothing
   | t0 > 0 = Just (Hit p0 n0 t0 color)
   | otherwise = Nothing
-  where delta = b^2 - 4.0*a*c
+  where delta = b ^ (2 :: Int) - 4.0*a*c
         a = dot d d
         b = 2.0 * (dot d (o - ct))
-        c = (sqrLen (o - ct)) - r^2
+        c = (sqrLen (o - ct)) - r ^ (2 :: Int)
         t0 = 0.5 * ((-b) - (sqrt delta))
         p0 = rayAt ray t0
         n0 = normalAt s p0
@@ -97,26 +112,51 @@ rayFromPixel w h (Perspective f pw ph n) x y = Ray o d where
 diffuse :: Color -> Color -> Vec -> Vec -> Color
 diffuse cd lc l n = C.mul ((max (dot l n) 0) * piInv) (cd * lc)
 
+reflect :: Vec -> Vec -> Vec
+reflect v n = v - (Vec.mul (2 * (dot v n)) n)
+
+eps :: Float
+eps = 0.0001
+
+rayEps :: Vec -> Vec -> Ray
+rayEps p n = Ray (p + (Vec.mul eps n)) n
+
 accumDiffuse :: [Shape] -> [Light] -> Vec -> Vec -> Color -> Color
 accumDiffuse sc lts p n color =
   foldl (\c l -> c + (diffFromLight l)) black lts
   where diffFromLight light =
-          let inter = closestIntersection sc (Ray (p+(Vec.mul 0.0001 ld)) ld)
+          let inter = closestIntersection sc (rayEps p ld)
           in case inter of
             Just _ -> black
             Nothing -> (diffuse color (col light) ld n)
           where ld = dir light
-        
-traceRay :: [Shape] -> [Light] -> Ray -> Color
-traceRay shapes lights ray =
+
+maxDepth :: Int
+maxDepth = 3
+
+r0 :: Float
+r0 = ((n1 - n2) / (n1 + n2)) ^ (2 :: Int)
+  where n1 = 1.0
+        n2 = 1.5
+
+fresnel :: Float -> Float
+fresnel cosθ = r0 + (1 - r0) * (1 - cosθ) ^ (5 :: Int)
+
+traceRay :: [Shape] -> [Light] -> Ray -> Int -> Color
+traceRay shapes lights ray@(Ray _ v) depth =
   let inter = closestIntersection shapes ray
   in case inter of
     Just (Hit p n _ c) -> 
       (C.mul 0.2 c) + (accumDiffuse shapes lights p n c)
+      + (C.mul (fresnel (dot n (-v))) (specular p n))
     Nothing -> black
+  where specular p n
+          | depth < maxDepth = traceRay shapes lights
+                               (rayEps p (reflect v n)) (depth+1)
+          | otherwise = black
                     
 tracePixel :: [Shape]-> [Light] -> Float -> Float -> (Float, Float) -> Color
-tracePixel scene lights w h (i, j) = traceRay scene lights ray
+tracePixel scene lights w h (i, j) = traceRay scene lights ray 0
   where ray = (rayFromPixel w h
                (Perspective 0 2 2 0.1)
                i j)
@@ -139,7 +179,7 @@ rayTrace w h = generatePixels w h
 
 main :: IO ()
 main = do
-  let output = rayTrace 512 512
+  let output = rayTrace 1024 1024
   writePPM "out.ppm" output
   putStrLn "done!"
 
