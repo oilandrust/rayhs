@@ -1,4 +1,4 @@
-module Material (Material(Mirror, Diffuse, Plastic)
+module Material (Material(Mirror, Diffuse, Plastic, Emmit)
                 , fresnel
                 , diffuse) where
 
@@ -11,7 +11,8 @@ import qualified Color as C (mul)
 
 data Material = Mirror { ior :: Float }
               | Diffuse { cd :: Color }
-              | Plastic { cd :: Color, ior :: Float} deriving Show
+              | Plastic { cd :: Color, ior :: Float}
+              | Emmit { ce :: Color } deriving Show
 
 r0 :: Float -> Float
 r0 n2 = ((n1 - n2) / (n1 + n2)) ^ (2 :: Int)

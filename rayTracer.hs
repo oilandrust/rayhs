@@ -36,17 +36,20 @@ import qualified Vec (o, mul)
 import qualified Color as C (mul)
 
 {- Raytracing -}
+eps :: Float
+eps = 0.0001
+
+maxDepth :: Int
+maxDepth = 3
+
 data Geometry = Sphere { center :: Vec, radius :: Float }
               | Plane Vec Vec
               deriving Show
 
 data Shape = Shape Geometry Material deriving Show
 
-data Light = Directional { dir :: Vec, col :: Color } deriving Show
-
-normalAt :: Geometry -> Vec -> Vec
-normalAt (Sphere o r) v = normalize (v - o)
-normalAt (Plane p n) _ = n
+data Light = Directional { dir :: Vec, col :: Color }
+           | Point { pos :: Vec, col :: Color, r :: Float } deriving Show
 
 data Ray = Ray { origin :: Vec
                , direction :: Vec} deriving Show
@@ -70,7 +73,7 @@ intersection ray@(Ray o d) (Shape s@(Sphere ct r) color)
         c = (sqrLen (o - ct)) - r ^ (2 :: Int)
         t0 = 0.5 * ((-b) - (sqrt delta))
         p0 = rayAt ray t0
-        n0 = normalAt s p0
+        n0 = normalize (p0 - ct)
 
 intersection ray@(Ray o d) (Shape (Plane p n) color)
   | (abs dDotn) > 0 && t > 0 = Just (Hit (rayAt ray t) n t color)
@@ -87,6 +90,15 @@ closestIntersection scene r = case hits of
   [] -> Nothing
   _  -> Just $ minimumBy (compare `on` t) hits
   where hits = intersections scene r
+
+shadowIntersection :: [Shape] -> Ray -> Maybe Hit
+shadowIntersection scene r = case hits of
+  [] -> Nothing
+  _  -> Just $ minimumBy (compare `on` t) hits
+  where hits = filter isOccluder (intersections scene r)
+
+isOccluder (Hit _ _ _ (Emmit _)) = False
+isOccluder _ = True
 
 data Projection = Orthographic { width :: Float, height :: Float}
                 | Perspective { fovy :: Float
@@ -111,24 +123,25 @@ rayFromPixel w h (Perspective f pw ph n) x y = Ray o d where
     True -> (pw, pw/aspect)
     False -> (aspect*ph, ph)
   
-eps :: Float
-eps = 0.0001
 
 rayEps :: Vec -> Vec -> Ray
 rayEps p n = Ray (p + (Vec.mul eps n)) n
+
+lightAt :: Light -> Vec -> (Vec, Color)
+lightAt (Directional d c) _ = (d, c)
+lightAt (Point p0 c r) p = (Vec.mul (1/d) (p0 - p), C.mul falloff c)
+  where falloff = 1.0 / (1.0 + d/r)^(2::Int)
+        d = dist p0 p
 
 accumDiffuse :: [Shape] -> [Light] -> Vec -> Vec -> Color -> Color
 accumDiffuse sc lts p n color =
   foldl (\c l -> c + (diffFromLight l)) black lts
   where diffFromLight light =
-          let inter = closestIntersection sc (rayEps p ld)
+          let inter = shadowIntersection sc (rayEps p ld)
           in case inter of
             Just _ -> black
-            Nothing -> (diffuse color (col light) ld n)
-          where ld = dir light
-
-maxDepth :: Int
-maxDepth = 3
+            Nothing -> (diffuse color lc ld n)
+          where (ld, lc) = lightAt light p
 
 irradiance :: Int -> [Shape] -> [Light] -> Material -> Vec -> Vec -> Vec -> Color  
 irradiance d shapes lights (Diffuse cd) _ p n = accumDiffuse shapes lights p n cd
@@ -146,6 +159,7 @@ irradiance d shapes lights (Mirror ior) v p n =
           | d < maxDepth = traceRay shapes lights
                                (rayEps p (reflect v n)) (d+1)
           | otherwise = black
+irradiance _ _ _ (Emmit ce) _ _ _ = ce 
         
 
 traceRay :: [Shape] -> [Light] -> Ray -> Int -> Color
@@ -164,18 +178,18 @@ tracePixel scene lights w h (i, j) = traceRay scene lights ray 0
 rayTrace :: Int -> Int -> Image
 rayTrace w h = generatePixels w h
                (tracePixel
-                [Shape (Sphere (Vec 0.5 (-0.5)    1.7) 0.5) (Plastic red 1.9),
-                 Shape (Sphere (Vec (-0.7) (-0.6) 1.8) 0.4) (Mirror 0.1),
-                 Shape (Sphere (Vec (-0.1) (-0.8) 0.6) 0.2) (Diffuse green),
+                [Shape (Sphere (Vec 0.5 (-0.5)    3.2) 0.5) (Plastic red 1.9),
+                 Shape (Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
+                 Shape (Sphere (Vec (-0.1) (-0.8) 2.1) 0.2) (Diffuse green),
+                 Shape (Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
                  --Shape (Plane (Vec 0 0 2) (-zAxis)) white,
                  --Shape (Plane (Vec 1 0 0) (-xAxis)) green,
                  --Shape (Plane (Vec (-1) 0 0) (xAxis)) red,
                  --Shape (Plane (Vec 0 1 0) (-yAxis)) white,
                  Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
                 [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
-                 Directional (normalize (Vec 0.1 0.7 (1))) (gray 0.9),
-                 Directional (normalize (Vec (-0.7) 1 (-1))) (rgbi 255 255 102)]
-                (fromIntegral w)
+                 Point (Vec 0 1.5 3) (gray 1000) 0.1]
+                 (fromIntegral w)
                 (fromIntegral h))
 
 
