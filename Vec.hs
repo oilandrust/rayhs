@@ -9,6 +9,7 @@ module Vec (Vec(Vec)
            , sqrDist
            , dist
            , normalize
+           , reflect
            , toRGB) where
 
 import Color hiding (mul)
@@ -52,3 +53,6 @@ normalize v = mul (1 / (sqrt . sqrLen $ v)) v
 
 toRGB :: Vec -> Color
 toRGB (Vec x y z) = (RGB x y z)
+
+reflect :: Vec -> Vec -> Vec
+reflect v n = v - (Vec.mul (2 * (dot v n)) n)

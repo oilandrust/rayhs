@@ -3,16 +3,15 @@
 
 {-
 TOTO:
--Specular reflections
 -Specular refractions
 -Point lights
--Recursive traycing
 -Multisampling
 -Texturing
 -Triangle Mesh
 -kDTree
 -Glossy BRDFs
 -Path Tracing
+-Parallelism
 -}
 
 module Main where
@@ -23,12 +22,15 @@ import Data.Function
 import Data.Vector (Vector, cons, (!), (!?), (//))
 import qualified Data.Vector as V
 
+import Text.Printf
 import System.Environment (getArgs)
+import System.CPUTime
 
 import Math
 import Color hiding (mul)
 import Image
 import Vec hiding (o, mul)
+import Material
 
 import qualified Vec (o, mul)
 import qualified Color as C (mul)
@@ -37,8 +39,8 @@ import qualified Color as C (mul)
 data Geometry = Sphere { center :: Vec, radius :: Float }
               | Plane Vec Vec
               deriving Show
-                                                    
-data Shape = Shape Geometry Color deriving Show
+
+data Shape = Shape Geometry Material deriving Show
 
 data Light = Directional { dir :: Vec, col :: Color } deriving Show
 
@@ -52,7 +54,7 @@ data Ray = Ray { origin :: Vec
 data Hit = Hit { position :: Vec
                , normal :: Vec
                , t :: Float
-               , color :: Color } deriving Show
+               , material :: Material } deriving Show
 
 rayAt :: Ray -> Float -> Vec
 rayAt (Ray o d) t = o + Vec.mul t d
@@ -109,12 +111,6 @@ rayFromPixel w h (Perspective f pw ph n) x y = Ray o d where
     True -> (pw, pw/aspect)
     False -> (aspect*ph, ph)
   
-diffuse :: Color -> Color -> Vec -> Vec -> Color
-diffuse cd lc l n = C.mul ((max (dot l n) 0) * piInv) (cd * lc)
-
-reflect :: Vec -> Vec -> Vec
-reflect v n = v - (Vec.mul (2 * (dot v n)) n)
-
 eps :: Float
 eps = 0.0001
 
@@ -134,27 +130,31 @@ accumDiffuse sc lts p n color =
 maxDepth :: Int
 maxDepth = 3
 
-r0 :: Float
-r0 = ((n1 - n2) / (n1 + n2)) ^ (2 :: Int)
-  where n1 = 1.0
-        n2 = 1.5
+irradiance :: Int -> [Shape] -> [Light] -> Material -> Vec -> Vec -> Vec -> Color  
+irradiance d shapes lights (Diffuse cd) _ p n = accumDiffuse shapes lights p n cd
+irradiance d shapes lights (Plastic cd ior) v p n =
+  accumDiffuse shapes lights p n cd
+  + (C.mul (fresnel ior (dot n (-v))) (specular p n))
+  where specular p n
+          | d < maxDepth = traceRay shapes lights
+                           (rayEps p (reflect v n)) (d+1)
+          | otherwise = black
 
-fresnel :: Float -> Float
-fresnel cosθ = r0 + (1 - r0) * (1 - cosθ) ^ (5 :: Int)
+irradiance d shapes lights (Mirror ior) v p n =
+  (C.mul (fresnel ior (dot n (-v))) (specular p n))
+  where specular p n
+          | d < maxDepth = traceRay shapes lights
+                               (rayEps p (reflect v n)) (d+1)
+          | otherwise = black
+        
 
 traceRay :: [Shape] -> [Light] -> Ray -> Int -> Color
 traceRay shapes lights ray@(Ray _ v) depth =
   let inter = closestIntersection shapes ray
   in case inter of
-    Just (Hit p n _ c) -> 
-      (C.mul 0.2 c) + (accumDiffuse shapes lights p n c)
-      + (C.mul (fresnel (dot n (-v))) (specular p n))
+    Just (Hit p n _ mat) -> irradiance depth shapes lights mat v p n
     Nothing -> black
-  where specular p n
-          | depth < maxDepth = traceRay shapes lights
-                               (rayEps p (reflect v n)) (depth+1)
-          | otherwise = black
-                    
+
 tracePixel :: [Shape]-> [Light] -> Float -> Float -> (Float, Float) -> Color
 tracePixel scene lights w h (i, j) = traceRay scene lights ray 0
   where ray = (rayFromPixel w h
@@ -164,21 +164,24 @@ tracePixel scene lights w h (i, j) = traceRay scene lights ray 0
 rayTrace :: Int -> Int -> Image
 rayTrace w h = generatePixels w h
                (tracePixel
-                [Shape (Sphere (Vec 0.3 (-0.5) 1.5) 0.5) red,
-                 Shape (Sphere (Vec (-0.4) 0.25 0.7) 0.3) blue,
-                 Shape (Sphere (Vec (-0.3) (-0.4) 1) 0.2) green,
+                [Shape (Sphere (Vec 0.5 (-0.5)    1.7) 0.5) (Plastic red 1.9),
+                 Shape (Sphere (Vec (-0.7) (-0.6) 1.8) 0.4) (Mirror 0.1),
+                 Shape (Sphere (Vec (-0.1) (-0.8) 0.6) 0.2) (Diffuse green),
                  --Shape (Plane (Vec 0 0 2) (-zAxis)) white,
                  --Shape (Plane (Vec 1 0 0) (-xAxis)) green,
                  --Shape (Plane (Vec (-1) 0 0) (xAxis)) red,
                  --Shape (Plane (Vec 0 1 0) (-yAxis)) white,
-                 Shape (Plane (Vec 0 (-1) 0) yAxis) white]
+                 Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
                 [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
-                 Directional (normalize (Vec (-0.7) 1 (-1))) (RGB 0.8 0.8 0.7)]
+                 Directional (normalize (Vec 0.1 0.7 (1))) (gray 0.9),
+                 Directional (normalize (Vec (-0.7) 1 (-1))) (rgbi 255 255 102)]
                 (fromIntegral w)
                 (fromIntegral h))
 
+
 main :: IO ()
 main = do
+  args <- getArgs
   let output = rayTrace 1024 1024
   writePPM "out.ppm" output
   putStrLn "done!"

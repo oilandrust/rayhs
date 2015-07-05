@@ -1,11 +1,14 @@
 module Color (Color(RGB)
-              , mul
-              , black
-              , white
-              , red
-              , green
-              , blue
-              , gray) where
+             , rgbi
+             , mul
+             , black
+             , white
+             , red
+             , green
+             , blue
+             , gray) where
+
+import Math
 
 {- Color -}
 data Color = RGB Float Float Float deriving Show
@@ -16,7 +19,9 @@ instance Num Color where
   (RGB x1 y1 z1) - (RGB x2 y2 z2) = (RGB (x1-x2) (y1-y2) (z1-z2))
   negate (RGB x y z) = (RGB (-x) (-y) (-z))  
 
-
+rgbi :: Int -> Int -> Int -> Color
+rgbi r g b = RGB (fdiv r 255) (fdiv r 255) (fdiv r 255)
+  
 black :: Color
 black = RGB 0 0 0
 

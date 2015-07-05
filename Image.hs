@@ -9,6 +9,7 @@ module Image (Image(Image)
 import Data.List
 import Data.Vector (Vector, cons, (!), (!?), (//))
 import qualified Data.Vector as V
+import Control.Parallel.Strategies
 
 import Math
 import Color
@@ -16,24 +17,28 @@ import Color
 {- Image -}
 data Image = Image { width  :: Int
                    , height :: Int
-                   , pixels :: Vector Color } deriving Show
+                   , pixels :: [Color] } deriving Show
 
 mapPixels :: (Color -> (Int, Int) -> Color) -> Image -> Image
-mapPixels f (Image w h px) = Image w h (V.zipWith f px
-                                        (V.fromList indices))
+mapPixels f (Image w h px) = Image w h (zipWith f px indices)
   where indices = [(x,y) | y <- [0..h-1], x <- [0..w-1]] 
 
+instance NFData Color
+
 generatePixels :: Int -> Int -> ((Float, Float) -> Color) -> Image
-generatePixels w h f = Image w h (V.generate (w*h)
+generatePixels w h f = Image w h (parMap rdeepseq
                                   (\i -> f ((fromIntegral (i `mod` w)),
-                                            (fromIntegral (i `div` w)))))
+                                            (fromIntegral (i `div` w))))
+                                  [0..(w*h)]
+                                 )
 
 gradient :: Int -> Int -> Image
-gradient w h = Image w h (V.generate (w*h)
-                         (\i -> gray (fdiv i (w * h - 1))))
+gradient w h = Image w h (map
+                         (\i -> gray (fdiv i (w * h - 1)))
+                         [0..(w*h)])
 
 solidImage :: Int -> Int -> Color -> Image
-solidImage w h c = Image w h (V.replicate (w*h) c)
+solidImage w h c = Image w h (replicate (w*h) c)
 
 emptyImage :: Int -> Int -> Image
 emptyImage w h = solidImage w h black
@@ -43,7 +48,8 @@ toIntC c = truncate (255 * (min c 1))
 
 formatPixelsPPM :: Image -> String
 formatPixelsPPM (Image w h pix) = concat $ intercalate ["\n"] 
-                                  [[(formatPixel (pix ! (x+w*y)) ++ "  ")
+                                  [[(formatPixel
+                                     ((V.fromList pix) ! (x+w*y)) ++ "  ")
                                    | x <- [0..(w-1)]]
                                    | y <- [0..(h-1)]]
   where formatPixel (RGB r g b) = (show $ toIntC r)
