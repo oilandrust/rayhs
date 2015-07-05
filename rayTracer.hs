@@ -4,7 +4,6 @@
 {-
 TOTO:
 -Specular refractions
--Point lights
 -Multisampling
 -Texturing
 -Triangle Mesh
@@ -48,8 +47,17 @@ data Geometry = Sphere { center :: Vec, radius :: Float }
 
 data Shape = Shape Geometry Material deriving Show
 
+{- Light -}
 data Light = Directional { dir :: Vec, col :: Color }
            | Point { pos :: Vec, col :: Color, r :: Float } deriving Show
+
+lightAt :: Light -> Vec -> (Vec, Color)
+lightAt (Directional d c) _ = (d, c)
+lightAt (Point p0 c r) p = (Vec.mul (1/d) (p0 - p), C.mul falloff c)
+  where falloff = 1.0 / (1.0 + d/r)^(2::Int)
+        d = dist p0 p
+
+data Scene = Scene { shapes :: [Shape], lights :: [Light] } deriving Show
 
 data Ray = Ray { origin :: Vec
                , direction :: Vec} deriving Show
@@ -91,14 +99,17 @@ closestIntersection scene r = case hits of
   _  -> Just $ minimumBy (compare `on` t) hits
   where hits = intersections scene r
 
-shadowIntersection :: [Shape] -> Ray -> Maybe Hit
-shadowIntersection scene r = case hits of
+{- trace ray towards light to see if occluded -}
+shadowIntersection :: [Shape] -> Light -> Ray -> Maybe Hit
+shadowIntersection scene light r@(Ray o d) = case hits of
   [] -> Nothing
   _  -> Just $ minimumBy (compare `on` t) hits
-  where hits = filter isOccluder (intersections scene r)
-
-isOccluder (Hit _ _ _ (Emmit _)) = False
-isOccluder _ = True
+  where hits = filter isOccluder (filter inFrontOfLight (intersections scene r))
+        isOccluder (Hit _ _ _ (Emmit _)) = False
+        isOccluder _ = True
+        inFrontOfLight hit = case light of
+          (Directional _ _) -> True
+          (Point p _ _) -> (sqrDist o p) > (sqrDist (position hit) o)
 
 data Projection = Orthographic { width :: Float, height :: Float}
                 | Perspective { fovy :: Float
@@ -107,6 +118,7 @@ data Projection = Orthographic { width :: Float, height :: Float}
                               , near :: Float }
                   deriving Show
 
+{- Create ray from camera givent the projection -}
 rayFromPixel :: Float -> Float -> Projection -> Float -> Float -> Ray
 rayFromPixel w h (Orthographic pw ph) x y = Ray o (Vec 0 0 1) where
   o = Vec (apw * (x - (w/2)) / w) (aph * ((-y) + (h/2)) / h) 0
@@ -122,81 +134,92 @@ rayFromPixel w h (Perspective f pw ph n) x y = Ray o d where
   (apw, aph) = case (aspect>1) of
     True -> (pw, pw/aspect)
     False -> (aspect*ph, ph)
-  
 
 rayEps :: Vec -> Vec -> Ray
 rayEps p n = Ray (p + (Vec.mul eps n)) n
-
-lightAt :: Light -> Vec -> (Vec, Color)
-lightAt (Directional d c) _ = (d, c)
-lightAt (Point p0 c r) p = (Vec.mul (1/d) (p0 - p), C.mul falloff c)
-  where falloff = 1.0 / (1.0 + d/r)^(2::Int)
-        d = dist p0 p
 
 accumDiffuse :: [Shape] -> [Light] -> Vec -> Vec -> Color -> Color
 accumDiffuse sc lts p n color =
   foldl (\c l -> c + (diffFromLight l)) black lts
   where diffFromLight light =
-          let inter = shadowIntersection sc (rayEps p ld)
+          let inter = shadowIntersection sc light (rayEps p ld)
           in case inter of
             Just _ -> black
             Nothing -> (diffuse color lc ld n)
           where (ld, lc) = lightAt light p
 
-irradiance :: Int -> [Shape] -> [Light] -> Material -> Vec -> Vec -> Vec -> Color  
-irradiance d shapes lights (Diffuse cd) _ p n = accumDiffuse shapes lights p n cd
-irradiance d shapes lights (Plastic cd ior) v p n =
+{- Irradiance comutation at a point with normal and material -}
+irradiance :: Int -> Scene -> Material -> Vec -> Vec -> Vec -> Color  
+irradiance d (Scene shapes lights) (Diffuse cd) _ p n = (C.mul 0.2 cd) +
+  accumDiffuse shapes lights p n cd
+
+irradiance d scene@(Scene shapes lights) (Plastic cd ior) v p n =
   accumDiffuse shapes lights p n cd
   + (C.mul (fresnel ior (dot n (-v))) (specular p n))
   where specular p n
-          | d < maxDepth = traceRay shapes lights
+          | d < maxDepth = traceRay scene
                            (rayEps p (reflect v n)) (d+1)
           | otherwise = black
 
-irradiance d shapes lights (Mirror ior) v p n =
+irradiance d scene (Mirror ior) v p n =
   (C.mul (fresnel ior (dot n (-v))) (specular p n))
   where specular p n
-          | d < maxDepth = traceRay shapes lights
+          | d < maxDepth = traceRay scene
                                (rayEps p (reflect v n)) (d+1)
           | otherwise = black
-irradiance _ _ _ (Emmit ce) _ _ _ = ce 
-        
+irradiance _ _ (Emmit ce) _ _ _ = ce 
 
-traceRay :: [Shape] -> [Light] -> Ray -> Int -> Color
-traceRay shapes lights ray@(Ray _ v) depth =
-  let inter = closestIntersection shapes ray
+traceRay :: Scene -> Ray -> Int -> Color
+traceRay scene ray@(Ray _ v) depth =
+  let inter = closestIntersection (shapes scene) ray
   in case inter of
-    Just (Hit p n _ mat) -> irradiance depth shapes lights mat v p n
+    Just (Hit p n _ mat) -> irradiance depth scene mat v p n
     Nothing -> black
 
-tracePixel :: [Shape]-> [Light] -> Float -> Float -> (Float, Float) -> Color
-tracePixel scene lights w h (i, j) = traceRay scene lights ray 0
+tracePixel :: Scene -> Float -> Float -> (Float, Float) -> Color
+tracePixel scene w h (i, j) = traceRay scene ray 0
   where ray = (rayFromPixel w h
                (Perspective 0 2 2 0.1)
                i j)
 
-rayTrace :: Int -> Int -> Image
-rayTrace w h = generatePixels w h
-               (tracePixel
-                [Shape (Sphere (Vec 0.5 (-0.5)    3.2) 0.5) (Plastic red 1.9),
-                 Shape (Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
-                 Shape (Sphere (Vec (-0.1) (-0.8) 2.1) 0.2) (Diffuse green),
-                 Shape (Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
-                 --Shape (Plane (Vec 0 0 2) (-zAxis)) white,
-                 --Shape (Plane (Vec 1 0 0) (-xAxis)) green,
-                 --Shape (Plane (Vec (-1) 0 0) (xAxis)) red,
-                 --Shape (Plane (Vec 0 1 0) (-yAxis)) white,
-                 Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
-                [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
-                 Point (Vec 0 1.5 3) (gray 1000) 0.1]
-                 (fromIntegral w)
-                (fromIntegral h))
+rayTrace :: Scene -> Int -> Int -> Image
+rayTrace scene w h = generatePixels w h
+                     (tracePixel scene
+                      (fromIntegral w)
+                      (fromIntegral h))
+
+openScene :: Scene
+openScene = Scene [Shape (Sphere (Vec 0.5 (-0.5)    3.2) 0.5) (Plastic red 1.9),
+                   Shape (Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
+                   Shape (Sphere (Vec (-0.1) (-0.8) 2.1) 0.2) (Diffuse green),
+                   Shape (Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
+                   Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
+                  [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
+                   Point (Vec 0 1.5 3) (gray 1000) 0.1]
+
+
+lightPos :: Vec
+lightPos = Vec 0.6 (-0.4) 0.2
+
+cornellBox :: Scene
+cornellBox = Scene [Shape (Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9),
+                    Shape (Sphere (Vec (-0.4) (-0.7) 1.2) 0.3) (Mirror 0.1),
+                    Shape (Sphere (Vec (-0.1) (-0.8) 0.4) 0.2) (Diffuse green),
+                    Shape (Sphere lightPos 0.1) (Emmit white),
+                    Shape (Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
+                    Shape (Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
+                    Shape (Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
+                    Shape (Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
+                    Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
+                   [Point (Vec 0 0.9 0) (gray 200) 0.1,
+                    Point lightPos (gray 50) 0.1]
+                     
 
 
 main :: IO ()
 main = do
   args <- getArgs
-  let output = rayTrace 1024 1024
+  let output = rayTrace cornellBox 100 100
   writePPM "out.ppm" output
   putStrLn "done!"
 
