@@ -6,7 +6,8 @@ module Color (Color(RGB)
              , red
              , green
              , blue
-             , gray) where
+             , gray
+             , pink) where
 
 import Math
 
@@ -39,6 +40,9 @@ blue = RGB 0 0 1
 
 gray :: Float -> Color
 gray g = RGB g g g
+
+pink :: Color
+pink = RGB 1 0.8  1
 
 mul :: Float -> Color -> Color
 mul v (RGB r g b) = RGB (v*r) (v*g) (v*b)

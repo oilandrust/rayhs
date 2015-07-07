@@ -10,8 +10,8 @@ module Vec (Vec(Vec)
            , dist
            , normalize
            , reflect
-           , toRGB) where
-
+           , toRGB
+           , fromRGB) where
 import Color hiding (mul)
 
 data Vec = Vec Float Float Float deriving (Eq, Show)
@@ -53,6 +53,9 @@ normalize v = mul (1 / (sqrt . sqrLen $ v)) v
 
 toRGB :: Vec -> Color
 toRGB (Vec x y z) = (RGB x y z)
+
+fromRGB :: Color -> Vec
+fromRGB (RGB x y z) = (Vec x y z)
 
 reflect :: Vec -> Vec -> Vec
 reflect v n = v - (Vec.mul (2 * (dot v n)) n)
