@@ -5,11 +5,13 @@ module Vec (Vec(Vec)
            , zAxis
            , mul
            , dot
+           , cross
            , sqrLen
            , sqrDist
            , dist
            , normalize
            , reflect
+           , refract
            , toRGB
            , fromRGB) where
 import Color hiding (mul)
@@ -39,6 +41,10 @@ mul l (Vec x y z) = Vec (l*x) (l*y) (l*z)
 dot :: Vec -> Vec -> Float
 dot (Vec x1 y1 z1) (Vec x2 y2 z2) = x1*x2 + y1*y2 + z1*z2
 
+cross :: Vec -> Vec -> Vec
+cross (Vec x1 y1 z1) (Vec x2 y2 z2) =
+  Vec (y1*z2 - z1*y2) (z1*x2 - x1*z2) (x1*y2 - y1*x2)
+
 sqrLen :: Vec -> Float
 sqrLen v = dot v v
 
@@ -59,3 +65,13 @@ fromRGB (RGB x y z) = (Vec x y z)
 
 reflect :: Vec -> Vec -> Vec
 reflect v n = v - (Vec.mul (2 * (dot v n)) n)
+
+refract :: Vec -> Vec -> Float -> Float -> Maybe Vec
+refract i n n1 n2
+  | sin2θ > 1 = Nothing
+  | otherwise = Just $ (Vec.mul n1n2 i)
+                + (Vec.mul coeff n)
+  where n1n2 = n1 / n2
+        cosθ = (-(dot i n))
+        sin2θ = n1n2 * n1n2 * (1 - cosθ*cosθ)
+        coeff = n1n2 * cosθ - (sqrt (1.0-sin2θ))
