@@ -18,10 +18,10 @@ import qualified Data.Vector as V
 data Ray = Ray { origin :: Vec
                , direction :: Vec } deriving Show
 
-rayAt :: Ray -> Float -> Vec
+rayAt :: Ray -> Double -> Vec
 rayAt (Ray o d) t = o + Vec.mul t d
 
-eps :: Float
+eps :: Double
 eps = 0.0001
 
 rayEps :: Vec -> Vec -> Ray
@@ -30,10 +30,10 @@ rayEps p n = Ray (p + (Vec.mul eps n)) n
 {- Intersection hit -}
 data Hit = Hit { p :: Vec
                , n :: Vec
-               , t :: Float } deriving Show
+               , t :: Double } deriving Show
 
 {- Geometry -}
-data Geometry = Sphere { center :: Vec, radius :: Float }
+data Geometry = Sphere { center :: Vec, radius :: Double }
               | Plane Vec Vec
               | Mesh { vertices :: Vector Vec
                      , normals :: Vector Vec
@@ -65,24 +65,41 @@ intersection ray@(Ray o d) (Sphere ct r)
         n1 = normalize (p1 - ct)
 
 intersection ray mesh@(Mesh pts _ ids) = do
-  let hits = map fromJust $ filter isJust $
-             (mapTriangles (triangleIntersection ray) pts ids)
+  let hits = catMaybes $ mapTriangles (triangleIntersection ray) pts ids
     in case hits of
     [] -> Nothing
-    xs ->  let hit = minimumBy (compare `on` t) xs
-           in Just (Hit (p hit) (n hit) (t hit))
+    xs -> Just $ minimumBy (compare `on` t) xs
 
 triangleIntersection :: Ray -> (Vec, Vec, Vec) -> Maybe Hit
+triangleIntersection ray@(Ray o d) (p0, p1, p2) = do
+  case abs(det) < eps of
+    True -> Nothing
+    False -> case (u < 0 || u > 1 || v < 0 || (u + v) > 1) of
+      True -> Nothing
+      False -> Just $ Hit (rayAt ray t) n t 
+  where e1 = p1 - p0
+        e2 = p2 - p0
+        p = -cross d e2
+        det = dot e1 p
+        idet = 1 / det
+        t0 = o - p0
+        u = idet * (dot t0 p)
+        q = -cross t0 e1
+        v = idet * (dot d q)
+        t = idet * (dot e2 q)
+        n = normalize (cross (p1 - p0) (p2 - p0))
+
+{-
 triangleIntersection ray (p0, p1, p2) = do
-  hit <- intersection ray (Plane p0 norm)
-  let x = p hit
-  case (inside x) of
-    True -> Just hit
+  hit@(Hit p n t) <- intersection ray (Plane p0 normal)
+  case (inside p) of
+    True -> Just $ Hit p (normalize normal) t
     False -> Nothing
-  where norm = cross (p1 - p0) (p2 - p0)
-        inside x = dot norm (cross (p1 - p0) (x - p0)) >= 0 &&
-                   dot norm (cross (p2 - p1) (x - p1)) >= 0 &&
-                   dot norm (cross (p0 - p2) (x - p2)) >= 0        
+  where normal = cross (p1 - p0) (p2 - p0)
+        inside x = dot normal (cross (p1 - p0) (x - p0)) >= 0.0 &&
+                   dot normal (cross (p2 - p1) (x - p1)) >= 0.0 &&
+                   dot normal (cross (p0 - p2) (x - p2)) >= 0.0
+-}
 
 mapTriangles :: ((Vec, Vec, Vec) -> b) -> Vector Vec -> [Int] -> [b]
 mapTriangles f pts indices = map f

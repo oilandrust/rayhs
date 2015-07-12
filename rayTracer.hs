@@ -42,7 +42,7 @@ import qualified Geometry as Geom (intersection)
 
 {- Light -}
 data Light = Directional { dir :: Vec, col :: Color }
-           | Point { pos :: Vec, col :: Color, r :: Float } deriving Show
+           | Point { pos :: Vec, col :: Color, r :: Double } deriving Show
 
 lightAt :: Light -> Vec -> (Vec, Color)
 lightAt (Directional d c) _ = (d, c)
@@ -57,7 +57,7 @@ data Scene = Scene { shapes :: [Shape], lights :: [Light] } deriving Show
 
 data MatHit = MatHit { position :: Vec
                      , normal :: Vec
-                     , time :: Float
+                     , time :: Double
                      , material :: Material } deriving Show
 
 intersection :: Ray -> Shape -> Maybe MatHit
@@ -66,8 +66,7 @@ intersection ray (Shape shape material) = do
   return (MatHit p n t material)
 
 intersections :: [Shape] -> Ray -> [MatHit]
-intersections scene ray = map fromJust
-                          (filter isJust (map (intersection ray) scene))
+intersections scene ray = catMaybes $ map (intersection ray) scene
 
 closestIntersection :: [Shape] -> Ray -> Maybe MatHit
 closestIntersection scene r = case hits of
@@ -106,19 +105,25 @@ specular scene depth v p n
   | otherwise = black
         
 {- Irradiance comutation at a point with normal and material -}
-irradiance :: Int -> Scene -> Material -> Vec -> Vec -> Vec -> Color  
+irradiance :: Int -> Scene -> Material -> Vec -> Vec -> Vec -> Color
+
+{- Diffuse + Ambient -}
 irradiance _ (Scene shapes lights) (Diffuse cd) _ p n = (C.mul 0.2 cd) +
   accumDiffuse shapes lights p n cd
 
+{- Plastic -}
 irradiance d scene@(Scene shapes lights) (Plastic cd ior) v p n =
   accumDiffuse shapes lights p n cd
   + (C.mul (fresnel ior (dot n (-v))) (specular scene d v p n))
 
+{- Mirror -}
 irradiance d scene (Mirror ior) v p n =
   (C.mul (fresnel ior (dot n (-v))) (specular scene d v p n))
 
+{- Emmitter -}
 irradiance _ _ (Emmit ce) _ _ _ = ce 
 
+{- Transparent -}
 irradiance depth scene (Transparent ior) v p n =
   case transmitedRadiance of
     Nothing -> (C.mul (fresnel ior (dot n (-v))) (specular scene depth v p n))
@@ -141,7 +146,7 @@ traceRay scene ray@(Ray _ v) depth =
     Just (MatHit p n _ mat) -> irradiance depth scene mat v p n
     Nothing -> black
 
-tracePixel :: Scene -> Float -> Float -> (Float, Float) -> Color
+tracePixel :: Scene -> Double -> Double -> (Double, Double) -> Color
 tracePixel scene w h (i, j) = traceRay scene ray 0
   where ray = (rayFromPixel w h
                (Perspective 0 2 2 0.1)
@@ -153,26 +158,45 @@ rayTrace scene w h = generatePixels w h
                       (fromIntegral w)
                       (fromIntegral h))
 
-{- Test Data -}                     
+{- Test Data -}
+s :: Double
+s = 0.35
+h :: Double
+h = 0.3
+
+c = Vec (0) (-h) 1.5
+p0 = c + Vec 0    h 0
+p1 = c + Vec 0    0 (-s)
+p2 = c + Vec (-s) 0 0
+p3 = c + Vec 0    0 0
+p4 = c + Vec s    0 0 
+
 triMesh :: Geometry
 triMesh = Mesh
-          (V.fromList
-           [Vec 0 0 2, Vec 1 0 2, Vec 0 1 2,
-           Vec 0 0 2, Vec (-1) 0 2, Vec 0 (-1) 2]
-          )
+          (V.fromList [p0, p1, p2, p3, p4])
           (V.fromList [])
-          [0, 1, 2, 3, 4, 5]
+          [0, 1, 2]
+--           0, 2, 3,
+--           0, 3, 4,
+--           0, 4, 1]
 
+testMesh :: Scene
+testMesh = Scene [Shape triMesh (Diffuse (C.mul 2 blue)),
+                  Shape (Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
+                  Shape (Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
+                  Shape (Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
+                  Shape (Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
+                  Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
+                 [Point (Vec 0 0.5 1) (gray 200) 0.1]
+           
 openScene :: Scene
-openScene = Scene [Shape triMesh (Plastic blue 1.7),
-                   Shape (Sphere (Vec 0.5 (-0.5)    3.2) 0.5) (Plastic red 1.9),
+openScene = Scene [Shape (Sphere (Vec 0.5 (-0.5)    3.2) 0.5) (Plastic red 1.9),
                    Shape (Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
                    Shape (Sphere (Vec (-0.1) (-0.8) 2.1) 0.2) (Diffuse green),
                    Shape (Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
                    Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
                   [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
                    Point (Vec 0 1.5 3) (gray 1000) 0.1]
-
 
 cornellBox :: Scene
 cornellBox = Scene [Shape (Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9),
@@ -196,6 +220,6 @@ maxDepth = 5
 main :: IO ()
 main = do
   args <- getArgs
-  let output = rayTrace openScene 512 512
+  let output = rayTrace testMesh 512 512
   writePPM "out.ppm" output
   putStrLn "done!"

@@ -25,7 +25,7 @@ mapPixels f (Image w h px) = Image w h (zipWith f px indices)
 
 instance NFData Color
 
-generatePixels :: Int -> Int -> ((Float, Float) -> Color) -> Image
+generatePixels :: Int -> Int -> ((Double, Double) -> Color) -> Image
 generatePixels w h f = Image w h (parMap rdeepseq
                                   (\i -> f ((fromIntegral (i `mod` w)),
                                             (fromIntegral (i `div` w))))
@@ -43,7 +43,7 @@ solidImage w h c = Image w h (replicate (w*h) c)
 emptyImage :: Int -> Int -> Image
 emptyImage w h = solidImage w h black
 
-toIntC :: Float -> Int
+toIntC :: Double -> Int
 toIntC c = truncate (255 * (min c 1))
 
 formatPixelsPPM :: Image -> String

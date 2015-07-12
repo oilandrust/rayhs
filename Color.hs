@@ -12,7 +12,7 @@ module Color (Color(RGB)
 import Math
 
 {- Color -}
-data Color = RGB Float Float Float deriving Show
+data Color = RGB Double Double Double deriving Show
 
 instance Num Color where
   (RGB x1 y1 z1) + (RGB x2 y2 z2) = (RGB (x1+x2) (y1+y2) (z1+z2))
@@ -38,11 +38,11 @@ green = RGB 0 1 0
 blue :: Color
 blue = RGB 0 0 1
 
-gray :: Float -> Color
+gray :: Double -> Color
 gray g = RGB g g g
 
 pink :: Color
 pink = RGB 1 0.8  1
 
-mul :: Float -> Color -> Color
+mul :: Double -> Color -> Color
 mul v (RGB r g b) = RGB (v*r) (v*g) (v*b)

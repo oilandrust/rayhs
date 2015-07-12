@@ -3,8 +3,8 @@ module Math (fdiv
 
 import Data.Function
 
-fdiv :: Int -> Int -> Float
+fdiv :: Int -> Int -> Double
 fdiv = (/) `on` fromIntegral
 
-piInv :: Float
+piInv :: Double
 piInv = 1 / pi

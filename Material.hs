@@ -10,18 +10,18 @@ import Vec
 import qualified Vec (o, mul)
 import qualified Color as C (mul)
 
-data Material = Mirror { ior :: Float }
+data Material = Mirror { ior :: Double }
               | Diffuse { cd :: Color }
-              | Plastic { cd :: Color, ior :: Float}
+              | Plastic { cd :: Color, ior :: Double}
               | Emmit { ce :: Color }
-              | Transparent { ior :: Float }
+              | Transparent { ior :: Double }
               deriving Show
 
 
-r0 :: Float -> Float -> Float
+r0 :: Double -> Double -> Double
 r0 n1 n2 = ((n1 - n2) / (n1 + n2)) ^ (2 :: Int)
 
-fresnel :: Float -> Float -> Float
+fresnel :: Double -> Double -> Double
 fresnel ior cosθ = r + (1 - r) * (1 - cosθ) ^ (5 :: Int)
   where r = r0 1.0 ior
         
