@@ -108,7 +108,7 @@ specular scene depth v p n
 irradiance :: Int -> Scene -> Material -> Vec -> Vec -> Vec -> Color
 
 {- Diffuse + Ambient -}
-irradiance _ (Scene shapes lights) (Diffuse cd) _ p n = (C.mul 0.2 cd) +
+irradiance _ (Scene shapes lights) (Diffuse cd) _ p n = -- (C.mul 0.2 cd) +
   accumDiffuse shapes lights p n cd
 
 {- Plastic -}
@@ -164,7 +164,7 @@ s = 0.35
 h :: Double
 h = 0.3
 
-c = Vec (0) (-h) 1.5
+c = Vec (-s) (-1+h) 1.1
 p0 = c + Vec 0    h 0
 p1 = c + Vec 0    0 (-s)
 p2 = c + Vec (-s) 0 0
@@ -175,19 +175,24 @@ triMesh :: Geometry
 triMesh = Mesh
           (V.fromList [p0, p1, p2, p3, p4])
           (V.fromList [])
-          [0, 1, 2]
---           0, 2, 3,
---           0, 3, 4,
---           0, 4, 1]
+          [0, 1, 2,
+           0, 2, 3,
+           0, 3, 4,
+           0, 4, 1]
+
+topLight :: Light
+topLight = Point (Vec 0 0.5 1) (gray 300) 0.1
+
 
 testMesh :: Scene
 testMesh = Scene [Shape triMesh (Diffuse (C.mul 2 blue)),
+--                  Shape (Sphere c h) (Emmit (C.mul 2 blue)),
                   Shape (Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
                   Shape (Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
                   Shape (Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
                   Shape (Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
                   Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
-                 [Point (Vec 0 0.5 1) (gray 200) 0.1]
+                 [topLight]
            
 openScene :: Scene
 openScene = Scene [Shape (Sphere (Vec 0.5 (-0.5)    3.2) 0.5) (Plastic red 1.9),

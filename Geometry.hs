@@ -33,6 +33,9 @@ data Hit = Hit { p :: Vec
                , t :: Double } deriving Show
 
 {- Geometry -}
+-- class Surface a  where
+--  intersection :: Ray -> a -> Maybe Hit
+
 data Geometry = Sphere { center :: Vec, radius :: Double }
               | Plane Vec Vec
               | Mesh { vertices :: Vector Vec
@@ -72,34 +75,23 @@ intersection ray mesh@(Mesh pts _ ids) = do
 
 triangleIntersection :: Ray -> (Vec, Vec, Vec) -> Maybe Hit
 triangleIntersection ray@(Ray o d) (p0, p1, p2) = do
-  case abs(det) < eps of
+  case (abs(det) < eps ||
+        u < 0 || u > 1 ||
+        v < 0 || (u + v) > 1 ||
+        t < eps) of
     True -> Nothing
-    False -> case (u < 0 || u > 1 || v < 0 || (u + v) > 1) of
-      True -> Nothing
-      False -> Just $ Hit (rayAt ray t) n t 
+    False -> Just $ Hit (rayAt ray t) n t 
   where e1 = p1 - p0
         e2 = p2 - p0
-        p = -cross d e2
+        p = cross d e2
         det = dot e1 p
         idet = 1 / det
         t0 = o - p0
         u = idet * (dot t0 p)
-        q = -cross t0 e1
+        q = cross t0 e1
         v = idet * (dot d q)
         t = idet * (dot e2 q)
         n = normalize (cross (p1 - p0) (p2 - p0))
-
-{-
-triangleIntersection ray (p0, p1, p2) = do
-  hit@(Hit p n t) <- intersection ray (Plane p0 normal)
-  case (inside p) of
-    True -> Just $ Hit p (normalize normal) t
-    False -> Nothing
-  where normal = cross (p1 - p0) (p2 - p0)
-        inside x = dot normal (cross (p1 - p0) (x - p0)) >= 0.0 &&
-                   dot normal (cross (p2 - p1) (x - p1)) >= 0.0 &&
-                   dot normal (cross (p0 - p2) (x - p2)) >= 0.0
--}
 
 mapTriangles :: ((Vec, Vec, Vec) -> b) -> Vector Vec -> [Int] -> [b]
 mapTriangles f pts indices = map f
