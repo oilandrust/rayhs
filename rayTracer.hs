@@ -51,31 +51,31 @@ lightAt (Point p0 c r) p = (Vec.mul (1/d) (p0 - p), C.mul falloff c)
         d = dist p0 p
 
 {- Raytracing -}
-data Shape = Shape Geometry Material deriving Show
+data Object =  Object Geometry Material
 
-data Scene = Scene { shapes :: [Shape], lights :: [Light] } deriving Show
+data Scene = Scene { shapes :: [Object], lights :: [Light] }
 
 data MatHit = MatHit { position :: Vec
                      , normal :: Vec
                      , time :: Double
                      , material :: Material } deriving Show
 
-intersection :: Ray -> Shape -> Maybe MatHit
-intersection ray (Shape shape material) = do
+intersection :: Ray -> Object -> Maybe MatHit
+intersection ray (Object shape material) = do
   (Hit p n t) <- Geom.intersection ray shape
   return (MatHit p n t material)
 
-intersections :: [Shape] -> Ray -> [MatHit]
+intersections :: [Object] -> Ray -> [MatHit]
 intersections scene ray = catMaybes $ map (intersection ray) scene
 
-closestIntersection :: [Shape] -> Ray -> Maybe MatHit
+closestIntersection :: [Object] -> Ray -> Maybe MatHit
 closestIntersection scene r = case hits of
   [] -> Nothing
   _  -> Just $ minimumBy (compare `on` time) hits
   where hits = intersections scene r
 
 {- trace ray towards light to see if occluded -}
-shadowIntersection :: [Shape] -> Light -> Ray -> Maybe MatHit
+shadowIntersection :: [Object] -> Light -> Ray -> Maybe MatHit
 shadowIntersection scene light ray = case hits of
   [] -> Nothing
   _  -> Just $ minimumBy (compare `on` time) hits
@@ -87,7 +87,7 @@ shadowIntersection scene light ray = case hits of
           (Point p _ _) -> (sqrDist (origin ray) p) >
                            (sqrDist (position hit) (origin ray))
 
-accumDiffuse :: [Shape] -> [Light] -> Vec -> Vec -> Color -> Color
+accumDiffuse :: [Object] -> [Light] -> Vec -> Vec -> Color -> Color
 accumDiffuse sc lts p n color =
   foldl (\c l -> c + (diffFromLight l)) black lts
   where diffFromLight light =
@@ -171,7 +171,7 @@ p2 = c + Vec (-s) 0 0
 p3 = c + Vec 0    0 0
 p4 = c + Vec s    0 0 
 
-triMesh :: Geometry
+triMesh :: Mesh
 triMesh = Mesh
           (V.fromList [p0, p1, p2, p3, p4])
           (V.fromList [])
@@ -185,37 +185,36 @@ topLight = Point (Vec 0 0.5 1) (gray 300) 0.1
 
 
 testMesh :: Scene
-testMesh = Scene [Shape triMesh (Diffuse (C.mul 2 blue)),
---                  Shape (Sphere c h) (Emmit (C.mul 2 blue)),
-                  Shape (Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
-                  Shape (Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
-                  Shape (Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
-                  Shape (Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
-                  Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
+testMesh = Scene [Object (geom triMesh) (Diffuse (C.mul 2 blue)),
+                  Object (geom $ Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
+                  Object (geom $ Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
+                  Object (geom $ Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
+                  Object (geom $ Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
+                  Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
                  [topLight]
-           
-openScene :: Scene
-openScene = Scene [Shape (Sphere (Vec 0.5 (-0.5)    3.2) 0.5) (Plastic red 1.9),
-                   Shape (Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
-                   Shape (Sphere (Vec (-0.1) (-0.8) 2.1) 0.2) (Diffuse green),
-                   Shape (Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
-                   Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
-                  [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
-                   Point (Vec 0 1.5 3) (gray 1000) 0.1]
 
-cornellBox :: Scene
-cornellBox = Scene [Shape (Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9),
-                    Shape (Sphere (Vec (-0.4) (-0.7) 1.2) 0.3) (Mirror 0.1),
-                    Shape (Sphere (Vec (-0.2) (-0.8) 0.4) 0.2) (Diffuse green),
-                    Shape (Sphere (Vec (0.1) (-0.3) 0.3) 0.2) (Transparent 1.5),
-                    Shape (Sphere lightPos 0.1) (Emmit white),
-                    Shape (Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
-                    Shape (Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
-                    Shape (Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
-                    Shape (Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
-                    Shape (Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
-                   [Point (Vec 0 0.9 0.75) (gray 200) 0.1,
-                    Point lightPos (gray 50) 0.1]
+outside :: Scene
+outside = Scene [Object (geom $ Sphere (Vec 0.5 (-0.5) 3.2) 0.5) (Plastic red 1.9),
+                 Object (geom $ Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
+                 Object (geom $ Sphere (Vec (-0.1) (-0.8) 2) 0.2) (Diffuse green),
+                 Object (geom $ Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
+                 Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
+                [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
+                 Point (Vec 0 1.5 3) (gray 1000) 0.1]
+
+cBox :: Scene
+cBox = Scene [Object (geom $ Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9),
+              Object (geom $ Sphere (Vec (-0.4) (-0.7) 1.2) 0.3) (Mirror 0.1),
+              Object (geom $ Sphere (Vec (-0.2) (-0.8) 0.4) 0.2) (Diffuse green),
+              Object (geom $ Sphere (Vec (0.1) (-0.3) 0.3) 0.2) (Transparent 1.5),
+              Object (geom $ Sphere lightPos 0.1) (Emmit white),
+              Object (geom $ Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
+              Object (geom $ Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
+              Object (geom $ Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
+              Object (geom $ Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
+              Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
+       [Point (Vec 0 0.9 0.75) (gray 200) 0.1,
+        Point lightPos (gray 50) 0.1]
   where lightPos = Vec 0.6 (-0.4) 0.2
 
 

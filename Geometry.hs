@@ -1,9 +1,15 @@
+{-# LANGUAGE ExistentialQuantification #-}
+
 module Geometry (Ray(..)
                 , rayAt
                 , rayEps
                 , Hit(..)
-                , Geometry(..)
+                , Inter
                 , intersection
+                , Geometry(..)
+                , geom
+                , Shape(..)
+                , Mesh (..)
                 )where
 
 import Vec
@@ -32,26 +38,34 @@ data Hit = Hit { p :: Vec
                , n :: Vec
                , t :: Double } deriving Show
 
-{- Geometry -}
--- class Surface a  where
---  intersection :: Ray -> a -> Maybe Hit
+{- Geometry Class -}
+class Inter a  where
+  intersection :: Ray -> a -> Maybe Hit
 
-data Geometry = Sphere { center :: Vec, radius :: Double }
-              | Plane Vec Vec
-              | Mesh { vertices :: Vector Vec
-                     , normals :: Vector Vec
-                     , indices :: [Int] }
-              deriving Show
+data Geometry = forall a. Inter a => Geometry a
+geom :: Inter a => a -> Geometry
+geom = Geometry
+
+instance Inter Geometry where
+  intersection ray (Geometry a) = intersection ray a
 
 {- Ray/Primitives intersection -}
-intersection :: Ray -> Geometry -> Maybe Hit
-intersection ray@(Ray o d) (Plane p n)
+
+{- Basic shapes -}
+data Shape = Plane Vec Vec
+           | Sphere { center :: Vec, radius :: Double }
+
+instance Inter Shape where
+  intersection = rayShapeIntersection
+
+rayShapeIntersection :: Ray -> Shape -> Maybe Hit
+rayShapeIntersection ray@(Ray o d) (Plane p n)
   | (abs dDotn) > 0 && t > 0 = Just (Hit (rayAt ray t) n t)
   | otherwise = Nothing
     where dDotn = dot d n
           t = dot n (p - o) / dDotn
-
-intersection ray@(Ray o d) (Sphere ct r)
+               
+rayShapeIntersection ray@(Ray o d) (Sphere ct r)
   | delta < 0.0 = Nothing
   | t0 > 0 = Just (Hit p0 n0 t0)
   | t1 > 0 = Just (Hit p1 n1 t1)
@@ -67,7 +81,16 @@ intersection ray@(Ray o d) (Sphere ct r)
         p1 = rayAt ray t1
         n1 = normalize (p1 - ct)
 
-intersection ray mesh@(Mesh pts _ ids) = do
+{- Triangle Mesh -}
+data Mesh = Mesh { vertices :: Vector Vec
+                 , normals :: Vector Vec
+                 , indices :: [Int] } deriving Show
+
+instance Inter Mesh where
+  intersection = rayInterMesh
+
+rayInterMesh :: Ray -> Mesh -> Maybe Hit
+rayInterMesh ray mesh@(Mesh pts _ ids) = do
   let hits = catMaybes $ mapTriangles (triangleIntersection ray) pts ids
     in case hits of
     [] -> Nothing
