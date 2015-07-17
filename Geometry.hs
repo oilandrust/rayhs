@@ -1,6 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 
 module Geometry (Ray(..)
+                , eps
                 , rayAt
                 , rayEps
                 , Hit(..)
@@ -9,16 +10,9 @@ module Geometry (Ray(..)
                 , Geometry(..)
                 , geom
                 , Shape(..)
-                , Mesh (..)
-                )where
+                ) where
 
 import Vec
-
-import Data.List
-import Data.Maybe
-import Data.Function
-import Data.Vector (Vector, cons, (!), (!?), (//))
-import qualified Data.Vector as V
 
 {- Ray -}
 data Ray = Ray { origin :: Vec
@@ -81,44 +75,3 @@ rayShapeIntersection ray@(Ray o d) (Sphere ct r)
         p1 = rayAt ray t1
         n1 = normalize (p1 - ct)
 
-{- Triangle Mesh -}
-data Mesh = Mesh { vertices :: Vector Vec
-                 , normals :: Vector Vec
-                 , indices :: [Int] } deriving Show
-
-instance Inter Mesh where
-  intersection = rayInterMesh
-
-rayInterMesh :: Ray -> Mesh -> Maybe Hit
-rayInterMesh ray mesh@(Mesh pts _ ids) = do
-  let hits = catMaybes $ mapTriangles (triangleIntersection ray) pts ids
-    in case hits of
-    [] -> Nothing
-    xs -> Just $ minimumBy (compare `on` t) xs
-
-triangleIntersection :: Ray -> (Vec, Vec, Vec) -> Maybe Hit
-triangleIntersection ray@(Ray o d) (p0, p1, p2) = do
-  case (abs(det) < eps ||
-        u < 0 || u > 1 ||
-        v < 0 || (u + v) > 1 ||
-        t < eps) of
-    True -> Nothing
-    False -> Just $ Hit (rayAt ray t) n t 
-  where e1 = p1 - p0
-        e2 = p2 - p0
-        p = cross d e2
-        det = dot e1 p
-        idet = 1 / det
-        t0 = o - p0
-        u = idet * (dot t0 p)
-        q = cross t0 e1
-        v = idet * (dot d q)
-        t = idet * (dot e2 q)
-        n = normalize (cross (p1 - p0) (p2 - p0))
-
-mapTriangles :: ((Vec, Vec, Vec) -> b) -> Vector Vec -> [Int] -> [b]
-mapTriangles f pts indices = map f
-                             (map (\(i, j, k) -> (pts ! i, pts ! j, pts ! k))
-                              (faces indices))
-  where faces [] = []
-        faces (i:j:k:is) = (i, j, k):(faces is)

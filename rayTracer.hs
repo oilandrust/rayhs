@@ -34,6 +34,7 @@ import Image
 import Vec hiding (o, mul)
 import Material
 import Geometry hiding (intersection)
+import Mesh
 import Projection
 
 import qualified Vec (o, mul)
@@ -54,6 +55,9 @@ lightAt (Point p0 c r) p = (Vec.mul (1/d) (p0 - p), C.mul falloff c)
 data Object =  Object Geometry Material
 
 data Scene = Scene { shapes :: [Object], lights :: [Light] }
+
+addMesh :: Scene -> Mesh -> Material -> Scene
+addMesh (Scene s l) m mat = Scene (s++[Object (geom m) mat]) l
 
 data MatHit = MatHit { position :: Vec
                      , normal :: Vec
@@ -159,48 +163,27 @@ rayTrace scene w h = generatePixels w h
                       (fromIntegral h))
 
 {- Test Data -}
-s :: Double
-s = 0.35
-h :: Double
-h = 0.3
-
-c = Vec (-s) (-1+h) 1.1
-p0 = c + Vec 0    h 0
-p1 = c + Vec 0    0 (-s)
-p2 = c + Vec (-s) 0 0
-p3 = c + Vec 0    0 0
-p4 = c + Vec s    0 0 
-
-triMesh :: Mesh
-triMesh = Mesh
-          (V.fromList [p0, p1, p2, p3, p4])
-          (V.fromList [])
-          [0, 1, 2,
-           0, 2, 3,
-           0, 3, 4,
-           0, 4, 1]
 
 topLight :: Light
 topLight = Point (Vec 0 0.5 1) (gray 300) 0.1
 
-
 testMesh :: Scene
-testMesh = Scene [Object (geom triMesh) (Diffuse (C.mul 2 blue)),
-                  Object (geom $ Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
+testMesh = Scene [Object (geom $ Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
                   Object (geom $ Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
                   Object (geom $ Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
                   Object (geom $ Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
                   Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
-                 [topLight]
+           [topLight, Point lightPos (gray 50) 0.1]
+  where lightPos = Vec 0 (-0.4) 0.2
 
-outside :: Scene
-outside = Scene [Object (geom $ Sphere (Vec 0.5 (-0.5) 3.2) 0.5) (Plastic red 1.9),
-                 Object (geom $ Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
-                 Object (geom $ Sphere (Vec (-0.1) (-0.8) 2) 0.2) (Diffuse green),
-                 Object (geom $ Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
-                 Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
-                [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
-                 Point (Vec 0 1.5 3) (gray 1000) 0.1]
+out :: Scene
+out = Scene [Object (geom $ Sphere (Vec 0.5 (-0.5) 3.2) 0.5) (Plastic red 1.9),
+             Object (geom $ Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
+             Object (geom $ Sphere (Vec (-0.1) (-0.8) 2) 0.2) (Diffuse green),
+             Object (geom $ Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
+             Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic white 1.7)]
+            [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
+             Point (Vec 0 1.5 3) (gray 2000) 0.1]
 
 cBox :: Scene
 cBox = Scene [Object (geom $ Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9),
@@ -224,6 +207,10 @@ maxDepth = 5
 main :: IO ()
 main = do
   args <- getArgs
-  let output = rayTrace testMesh 512 512
+  mesh <- readOBJ "test.obj"
+  let tran = translate mesh (Vec (-0.6) (-0.8) 1.5)
+  let output = rayTrace
+               (addMesh testMesh tran (Diffuse white))
+               512 512
   writePPM "out.ppm" output
   putStrLn "done!"
