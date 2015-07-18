@@ -3,7 +3,8 @@
 
 {-
 TOTO:
--Triangle Mesh
+-Obj cleanup/normals
+-Smooth mormal
 -Correct transmitted radiance
 -Multisampling
 -Texturing
@@ -112,7 +113,7 @@ specular scene depth v p n
 irradiance :: Int -> Scene -> Material -> Vec -> Vec -> Vec -> Color
 
 {- Diffuse + Ambient -}
-irradiance _ (Scene shapes lights) (Diffuse cd) _ p n = -- (C.mul 0.2 cd) +
+irradiance _ (Scene shapes lights) (Diffuse cd) _ p n = (C.mul 0.2 cd) +
   accumDiffuse shapes lights p n cd
 
 {- Plastic -}
@@ -164,17 +165,16 @@ rayTrace scene w h = generatePixels w h
 
 {- Test Data -}
 
-topLight :: Light
-topLight = Point (Vec 0 0.5 1) (gray 300) 0.1
-
 testMesh :: Scene
 testMesh = Scene [Object (geom $ Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
                   Object (geom $ Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
                   Object (geom $ Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
                   Object (geom $ Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
                   Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
-           [topLight, Point lightPos (gray 50) 0.1]
-  where lightPos = Vec 0 (-0.4) 0.2
+                 [Point (Vec (-0.8) 0.8 0.2) (gray 100) 0.1,
+                  Point (Vec (-0.8) 0.8 1.8) (gray 100) 0.1,
+                  Point (Vec 0.8 0.8 0.2) (gray 100) 0.1,
+                  Point (Vec 0.8 0.8 1.8) (gray 100) 0.1]
 
 out :: Scene
 out = Scene [Object (geom $ Sphere (Vec 0.5 (-0.5) 3.2) 0.5) (Plastic red 1.9),
@@ -187,8 +187,8 @@ out = Scene [Object (geom $ Sphere (Vec 0.5 (-0.5) 3.2) 0.5) (Plastic red 1.9),
 
 cBox :: Scene
 cBox = Scene [Object (geom $ Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9),
-              Object (geom $ Sphere (Vec (-0.4) (-0.7) 1.2) 0.3) (Mirror 0.1),
-              Object (geom $ Sphere (Vec (-0.2) (-0.8) 0.4) 0.2) (Diffuse green),
+              Object (geom $ Sphere (Vec (0.7) (0.7) 1.7) 0.22) (Mirror 0.1),
+              Object (geom $ Sphere (Vec (-0.4) (-0.8) 0.4) 0.2) (Diffuse green),
               Object (geom $ Sphere (Vec (0.1) (-0.3) 0.3) 0.2) (Transparent 1.5),
               Object (geom $ Sphere lightPos 0.1) (Emmit white),
               Object (geom $ Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
@@ -202,15 +202,21 @@ cBox = Scene [Object (geom $ Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9)
 
 
 maxDepth :: Int
-maxDepth = 5
+maxDepth = 4
 
 main :: IO ()
 main = do
   args <- getArgs
-  mesh <- readOBJ "test.obj"
-  let tran = translate mesh (Vec (-0.6) (-0.8) 1.5)
+  cube <- readOBJ "cube2.obj"
+  putStrLn "done reading mesh from cube2.obj"
+  torus <- readOBJ "torus.obj"
+  putStrLn "done reading mesh from torus.obj"
+  let c = translate cube (Vec (-0.4) (-0.6) 1.5)
+  let t = translate torus (Vec (-0.4) (0.15) 1.5)
   let output = rayTrace
-               (addMesh testMesh tran (Diffuse white))
-               512 512
+               (addMesh
+                (addMesh cBox c (Plastic (gray 1.5) 1.9))
+                t (Plastic yellow 1.7))
+               1024 1024
   writePPM "out.ppm" output
   putStrLn "done!"

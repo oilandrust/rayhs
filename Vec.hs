@@ -13,7 +13,8 @@ module Vec (Vec(Vec)
            , reflect
            , refract
            , toRGB
-           , fromRGB) where
+           , fromRGB
+           , fromList) where
 import Color hiding (mul)
 
 data Vec = Vec Double Double Double deriving (Eq, Show)
@@ -57,12 +58,6 @@ dist v w = sqrt (sqrDist  v w)
 normalize :: Vec -> Vec
 normalize v = mul (1 / (sqrt . sqrLen $ v)) v
 
-toRGB :: Vec -> Color
-toRGB (Vec x y z) = (RGB x y z)
-
-fromRGB :: Color -> Vec
-fromRGB (RGB x y z) = (Vec x y z)
-
 reflect :: Vec -> Vec -> Vec
 reflect v n = v - (Vec.mul (2 * (dot v n)) n)
 
@@ -75,3 +70,13 @@ refract i n n1 n2
         cosθ = (-(dot i n))
         sin2θ = n1n2 * n1n2 * (1 - cosθ*cosθ)
         coeff = n1n2 * cosθ - (sqrt (1.0-sin2θ))
+
+{- Type conversions -}
+fromList :: [Double] -> Vec
+fromList d = Vec (d !! 0) (d !! 1) (d !! 2)
+
+toRGB :: Vec -> Color
+toRGB (Vec x y z) = (RGB x y z)
+
+fromRGB :: Color -> Vec
+fromRGB (RGB x y z) = (Vec x y z)
