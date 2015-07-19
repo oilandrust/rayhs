@@ -22,45 +22,46 @@ It should be guaranted that there is as many normals as vertices.
 Also, each index in the indices should be a valid index in the list of normals
 and positions.
 -}
-data Mesh = Mesh { vertices :: Vector Vec
-                 , normals :: Vector Vec
+
+type Vertex = (Position, Normal, UV)
+
+data Mesh = Mesh { vertices :: Vector Vertex
                  , indices :: [Int] } deriving Show
 
 empty :: Mesh
-empty = Mesh V.empty V.empty []
+empty = Mesh V.empty []
 
 instance Inter Mesh where
   intersection = rayInterMesh
 
 {- Ray Intersection -}
 rayInterMesh :: Ray -> Mesh -> Maybe Hit
-rayInterMesh ray mesh@(Mesh pts norms ids) = do
-  let hits = catMaybes $ mapTriangles (triangleIntersection ray) pts norms ids
+rayInterMesh ray mesh = do
+  let hits = catMaybes $ mapTriangles (triangleIntersection ray) mesh
     in case hits of
     [] -> Nothing
     xs -> Just $ minimumBy (compare `on` t) xs
 
 
--- Convenience type to store 3 vertices or 3 normals, ...
-type TriVec = (Vec, Vec, Vec)
+-- Convenience type to store 3 vertices
+type TriVec = (Vertex, Vertex, Vertex)
 
-triLookup :: Vector Vec -> (Int, Int, Int) -> TriVec
+triLookup :: Vector Vertex -> (Int, Int, Int) -> TriVec
 triLookup verts (i, j, k) = (verts ! i, verts ! j, verts ! k)
 
-barycentricInterp :: Double -> Vec ->
-                     Double -> Vec ->
-                     Double -> Vec -> Vec
-barycentricInterp a p b q c r =
-  (Vec.mul a p) + (Vec.mul b q) + (Vec.mul c r)
+barycentricInterp :: (Num a, Ext a) =>
+                     Double -> a -> Double -> a -> Double -> a
+                     -> a
+barycentricInterp a p b q c r = (mul a p) + (mul b q) + (mul c r)
 
-triangleIntersection :: Ray -> TriVec -> TriVec -> Maybe Hit
-triangleIntersection ray@(Ray o d) (p0, p1, p2) (n0, n1, n2) = do
+triangleIntersection :: Ray -> TriVec -> Maybe Hit
+triangleIntersection ray@(Ray o d) ((p0,n0,uv0), (p1,n1,uv1), (p2,n2,uv2)) = do
   case (abs(det) < eps ||
         u < 0 || u > 1 ||
         v < 0 || (u + v) > 1 ||
         t < eps) of
     True -> Nothing
-    False -> Just $ Hit (rayAt ray t) n t 
+    False -> Just $ UVHit (rayAt ray t) n uv t 
   where e1 = p1 - p0
         e2 = p2 - p0
         p = cross d e2
@@ -72,17 +73,20 @@ triangleIntersection ray@(Ray o d) (p0, p1, p2) (n0, n1, n2) = do
         v = idet * (dot d q)
         t = idet * (dot e2 q)
         n = barycentricInterp u n1 v n2 (1-u-v) n0
+        uv = barycentricInterp u uv1 v uv2 (1-u-v) uv0
 
 translate :: Mesh -> Vec -> Mesh
-translate (Mesh v n i) t = Mesh (V.map (+t) v) n i
+translate mesh t = mapVertices (\(p,n,uv) -> (p+t,n,uv)) mesh
 
-mapTriangles :: (TriVec -> TriVec -> b) -> Vector Vec -> Vector Vec-> [Int] -> [b]
-mapTriangles f pts norms indices =
-  map (\(pos, norms) -> f pos norms)
-  (map (\ids -> (triLookup pts ids, triLookup norms ids)) (faces indices))
+{- Mapping functions -}
+mapTriangles :: (TriVec -> b) -> Mesh -> [b]
+mapTriangles f (Mesh vertices indices) =
+  map f (map (\ids -> (triLookup vertices ids)) (faces indices))
   where faces [] = []
         faces (i:j:k:is) = (i, j, k):(faces is)
 
+mapVertices :: (Vertex -> Vertex) -> Mesh -> Mesh
+mapVertices f mesh = Mesh (V.map f (vertices mesh)) (indices mesh)
 
 {- Obj Loading -}
 
@@ -94,6 +98,7 @@ tc index
 type OBJIndex = (Int, Maybe Int, Maybe Int)
 data OBJToken = Vert Vec
               | Norm Vec
+              | UVS UV
               | Face [OBJIndex]
               deriving Show
 
@@ -112,6 +117,12 @@ readNormal s = let floats = readDoubles (words s) in
     3 -> Just $ (Norm $ fromList floats)
     _ -> Nothing
 
+readUV :: String -> Maybe OBJToken
+readUV s = let floats = readDoubles (words s) in
+  case (length floats) of
+    2 -> Just $ (UVS $ UV (floats !! 0) (floats !! 1))
+    _ -> Nothing
+    
 readOBJIndex :: String -> Maybe OBJIndex
 readOBJIndex s = parseIndex $ readMaybeInts s
 
@@ -132,15 +143,17 @@ readFace s = let indices = catMaybes $ map readOBJIndex (words s) in
 
 readLine :: String -> Maybe OBJToken
 readLine ('v':' ':rest) = readVertex rest
-readLine ('f':' ':rest) = readFace rest
 readLine ('v':'n':' ':rest) = readNormal rest
+readLine ('v':'t':' ':rest) = readUV rest
+readLine ('f':' ':rest) = readFace rest
 readLine _ = Nothing
 
-buildMeshData :: [OBJToken] -> ([Vec], [Vec], [OBJIndex])
-buildMeshData tokens = foldl dispatch ([], [], []) tokens
- where dispatch (vs, ns, is) (Vert v) = (vs ++ [v], ns, is)
-       dispatch (vs, ns, is) (Norm n) = (vs, ns ++ [n], is) 
-       dispatch (vs, ns, is) (Face f) = (vs, ns, is ++ f)
+buildMeshData :: [OBJToken] -> ([Vec], [Vec], [UV], [OBJIndex])
+buildMeshData tokens = foldl dispatch ([], [], [], []) tokens
+ where dispatch (vs, ns, uvs, is) (Vert v) = (vs ++ [v], ns, uvs, is)
+       dispatch (vs, ns, uvs, is) (Norm n) = (vs, ns ++ [n], uvs, is)
+       dispatch (vs, ns, uvs, is) (UVS u) = (vs, ns, uvs ++ [u], is) 
+       dispatch (vs, ns, uvs, is) (Face f) = (vs, ns, uvs, is ++ f)
 
 -- Functional style lookup table
 type IndexMap = OBJIndex -> Maybe Int
@@ -152,24 +165,26 @@ insertIndex imap oi i query = case query == oi of
   True -> Just i
   False -> imap query
 
-flatten :: ([Vec], [Vec], [OBJIndex]) -> ([Vec], [Vec], [Int])
-flatten (pos, norms, inds) = (pts, nrs, ids)
-  where (pts, nrs, ids, _) = foldl addVertex ([], [], [], emptyMap) inds
-        addVertex (vs, ns, is, imap) id@(pi, _, Just ni) =
+flattenVertices :: ([Position], [Normal], [UV], [OBJIndex]) -> ([Vertex], [Int])
+flattenVertices (pos, norms, uvs, inds) = (verts, ids)
+  where (verts, ids, _) = foldl addVertex ([], [], emptyMap) inds
+        addVertex (vs, is, imap) id =
           case imap id of
             Nothing -> let next = length vs in
-              (vs ++ [pos !! (pi-1)],
-               ns ++ [norms !! (ni-1)],
+              (vs ++ [mkV id],
                is ++ [next],
                insertIndex imap id next)
-            Just x -> (vs, ns, is ++ [x], imap)
-           
+            Just x -> (vs, is ++ [x], imap)
+        mkV (pi, Nothing, Nothing) = (pos!!(pi-1), Vec 0 0 0, UV 0 0)
+        mkV (pi, Just ui, Nothing) = (pos!!(pi-1), Vec 0 0 0, uvs!!(ui-1))
+        mkV (pi, Just ui, Just ni) = (pos!!(pi-1), norms!!(ni-1), uvs!!(ui -1))
+        mkV (pi, Nothing, Just ni) = (pos!!(pi-1), norms!!(ni-1), UV 0 0)
+
 buildMesh :: [OBJToken] -> Mesh
-buildMesh tokens = Mesh (V.fromList vs) (V.fromList ns) ids
-  where (vs, ns, ids) = flatten . buildMeshData $ tokens
+buildMesh tokens = Mesh (V.fromList verts) ids
+  where (verts, ids) = flattenVertices . buildMeshData $ tokens
         
 readOBJ :: String -> IO (Mesh)
 readOBJ path = do
   content <- readFile path
   return . buildMesh . catMaybes $ map readLine (lines content)
-

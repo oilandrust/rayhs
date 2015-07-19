@@ -1,9 +1,13 @@
-module Vec (Vec(Vec)
+module Vec (Vec (..)
+           , Ext (..)
+           , Position
+           , Normal
+           , Direction
+           , UV (..)
            , o
            , xAxis
            , yAxis
            , zAxis
-           , mul
            , dot
            , cross
            , sqrLen
@@ -15,14 +19,48 @@ module Vec (Vec(Vec)
            , toRGB
            , fromRGB
            , fromList) where
-import Color hiding (mul)
 
-data Vec = Vec Double Double Double deriving (Eq, Show)
+import Color
+
+data Vec = Vec { x :: Double,
+                 y :: Double,
+                 z :: Double} deriving (Eq, Show)
+
+data UV = UV { u :: Double,
+               v :: Double } deriving (Eq, Show)
+
 instance Num Vec where
   (Vec x1 y1 z1) + (Vec x2 y2 z2) = (Vec (x1+x2) (y1+y2) (z1+z2))
   (Vec x1 y1 z1) * (Vec x2 y2 z2) = (Vec (x1*x2) (y1*y2) (z1*z2))
   (Vec x1 y1 z1) - (Vec x2 y2 z2) = (Vec (x1-x2) (y1-y2) (z1-z2))
   negate (Vec x y z) = (Vec (-x) (-y) (-z))  
+
+instance Num UV where
+  (UV x1 y1) + (UV x2 y2) = (UV (x1+x2) (y1+y2))
+  (UV x1 y1) * (UV x2 y2) = (UV (x1*x2) (y1*y2))
+  (UV x1 y1) - (UV x2 y2) = (UV (x1-x2) (y1-y2))
+  negate (UV x y) = (UV (-x) (-y))  
+
+{- Exterior product -}
+class Ext a where
+  mul :: Double -> a -> a
+  mult :: a -> Double -> a
+
+instance Ext Vec where
+  mul l (Vec x y z) = Vec (l*x) (l*y) (l*z)
+  mult v l = mul l v
+
+instance Ext UV where
+  mul l (UV x y) = UV (l*x) (l*y)
+  mult v l = mul l v
+
+instance Ext Color where
+  mul l (RGB x y z) = RGB (l*x) (l*y) (l*z)
+  mult v l = mul l v
+
+type Position = Vec
+type Normal = Vec
+type Direction = Vec
 
 o :: Vec
 o = Vec 0 0 0
@@ -35,9 +73,6 @@ yAxis = Vec 0 1 0
 
 zAxis :: Vec
 zAxis = Vec 0 0 1
-
-mul :: Double -> Vec -> Vec
-mul l (Vec x y z) = Vec (l*x) (l*y) (l*z)
 
 dot :: Vec -> Vec -> Double
 dot (Vec x1 y1 z1) (Vec x2 y2 z2) = x1*x2 + y1*y2 + z1*z2

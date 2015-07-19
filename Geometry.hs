@@ -12,6 +12,7 @@ module Geometry (Ray(..)
                 , Shape(..)
                 ) where
 
+import Math
 import Vec
 
 {- Ray -}
@@ -28,9 +29,9 @@ rayEps :: Vec -> Vec -> Ray
 rayEps p n = Ray (p + (Vec.mul eps n)) n
 
 {- Intersection hit -}
-data Hit = Hit { p :: Vec
-               , n :: Vec
-               , t :: Double } deriving Show
+data Hit = Hit { p :: Position, n :: Normal, t :: Double }
+         | UVHit { p :: Position, n :: Normal, uv :: UV, t :: Double }
+         deriving Show
 
 {- Geometry Class -}
 class Inter a  where
@@ -46,23 +47,28 @@ instance Inter Geometry where
 {- Ray/Primitives intersection -}
 
 {- Basic shapes -}
-data Shape = Plane Vec Vec
+data Shape = Plane { point :: Vec, normal :: Vec, tangent :: Vec}
            | Sphere { center :: Vec, radius :: Double }
 
 instance Inter Shape where
   intersection = rayShapeIntersection
 
 rayShapeIntersection :: Ray -> Shape -> Maybe Hit
-rayShapeIntersection ray@(Ray o d) (Plane p n)
-  | (abs dDotn) > 0 && t > 0 = Just (Hit (rayAt ray t) n t)
+rayShapeIntersection ray@(Ray o d) (Plane p n t)
+  | (abs dDotn) > 0 && time > 0 = Just (UVHit pos n (UV u v) time)
   | otherwise = Nothing
     where dDotn = dot d n
-          t = dot n (p - o) / dDotn
+          time = dot n (p - o) / dDotn
+          pos = rayAt ray time --intersection
+          b = cross t n
+          rel = pos - p
+          u = dot t rel
+          v = dot b rel
                
 rayShapeIntersection ray@(Ray o d) (Sphere ct r)
   | delta < 0.0 = Nothing
-  | t0 > 0 = Just (Hit p0 n0 t0)
-  | t1 > 0 = Just (Hit p1 n1 t1)
+  | t0 > 0 = Just (UVHit p0 n0 (polar n0) t0)
+  | t1 > 0 = Just (UVHit p1 n1 (polar n1) t1)
   | otherwise = Nothing
   where delta = b ^ (2 :: Int) - 4.0*a*c
         a = dot d d
@@ -74,4 +80,5 @@ rayShapeIntersection ray@(Ray o d) (Sphere ct r)
         t1 = 0.5 * ((-b) + (sqrt delta)) / a
         p1 = rayAt ray t1
         n1 = normalize (p1 - ct)
-
+        polar p = UV (piInv * (atan $ (z p) / (x p))) (piInv * (acos (y p)))
+              

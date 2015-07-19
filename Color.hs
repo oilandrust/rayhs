@@ -1,6 +1,5 @@
 module Color (Color(RGB)
              , rgbi
-             , mul
              , black
              , white
              , red
