@@ -1,6 +1,7 @@
 module Math (fdiv
             , piInv
-            , twoPiInv) where
+            , twoPiInv
+            , inf) where
 
 import Data.Function
 
@@ -12,3 +13,6 @@ piInv = 1 / pi
 
 twoPiInv :: Double
 twoPiInv = 0.5 / pi
+
+inf :: Double
+inf = read "Infinity"

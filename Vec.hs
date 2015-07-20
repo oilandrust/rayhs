@@ -16,6 +16,8 @@ module Vec (Vec (..)
            , normalize
            , reflect
            , refract
+           , minV
+           , maxV
            , toRGB
            , fromRGB
            , fromList) where
@@ -74,6 +76,7 @@ yAxis = Vec 0 1 0
 zAxis :: Vec
 zAxis = Vec 0 0 1
 
+{- Functions -}
 dot :: Vec -> Vec -> Double
 dot (Vec x1 y1 z1) (Vec x2 y2 z2) = x1*x2 + y1*y2 + z1*z2
 
@@ -105,6 +108,12 @@ refract i n n1 n2
         cosθ = (-(dot i n))
         sin2θ = n1n2 * n1n2 * (1 - cosθ*cosθ)
         coeff = n1n2 * cosθ - (sqrt (1.0-sin2θ))
+
+minV :: Vec -> Vec -> Vec
+minV (Vec a b c) (Vec x y z) = Vec (min a x) (min b y) (min c z)
+
+maxV :: Vec -> Vec -> Vec
+maxV (Vec a b c) (Vec x y z) = Vec (max a x) (max b y) (max c z)
 
 {- Type conversions -}
 fromList :: [Double] -> Vec

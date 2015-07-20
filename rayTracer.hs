@@ -3,11 +3,14 @@
 
 {-
 TOTO:
+-Mesh without normals, has uv?
 -Correct Projections
 -Allow camera and object transformations
 -Correct transmitted radiance
 -Multisampling
--Texturing
+-Texture loading
+-Texture antialiasing
+-ior modulate
 -kDTree
 
 -Transparent shadows
@@ -61,20 +64,15 @@ addMesh (Scene s l) m mat = Scene (s++[Object (geom m) mat]) l
 
 data MatHit = MatHit { position :: Vec
                      , normal :: Vec
+                     , uv :: UV
                      , time :: Double
-                     , material :: Material } 
-            | MatUVHit { position :: Vec
-                       , normal :: Vec
-                       , uv :: UV
-                       , time :: Double
-                       , material :: Material } deriving Show
+                     , material :: Material } deriving Show
 
 intersection :: Ray -> Object -> Maybe MatHit
 intersection ray (Object shape material) = do
   hit <- Geom.intersection ray shape
   case hit of
-    (UVHit p n uv t) -> return (MatUVHit p n uv t material)
-    (Hit p n t) -> return (MatHit p n t material)
+    (Hit p n uv t) -> return (MatHit p n uv t material)
 
 intersections :: [Object] -> Ray -> [MatHit]
 intersections scene ray = catMaybes $ map (intersection ray) scene
@@ -91,7 +89,7 @@ shadowIntersection scene light ray = case hits of
   [] -> Nothing
   _  -> Just $ minimumBy (compare `on` time) hits
   where hits = filter isOccluder (filter inFrontOfLight (intersections scene ray))
-        isOccluder (MatHit _ _ _ (Emmit _)) = False
+        isOccluder (MatHit _ _ _ _ (Emmit _)) = False
         isOccluder _ = True
         inFrontOfLight hit = case light of
           (Directional _ _) -> True
@@ -149,7 +147,7 @@ irradiance depth scene (Transparent ior) v p n _ =
           | depth == maxDepth = Nothing
           | otherwise = do
             refRay <- (liftM $ rayEps p) (refract v n 1.0 ior)
-            (MatHit outp outn _ _) <- (closestIntersection (shapes scene)) refRay
+            (MatHit outp outn _ _ _) <- (closestIntersection (shapes scene)) refRay
             outRay <- liftM (rayEps outp)
                       (refract (direction refRay) (-outn) ior 1.0)
             return $ traceRay scene outRay (depth+1)
@@ -162,8 +160,7 @@ traceRay :: Scene -> Ray -> Int -> Color
 traceRay scene ray@(Ray _ v) depth =
   let inter = closestIntersection (shapes scene) ray
   in case inter of
-    Just (MatHit p n _ mat) -> irradiance depth scene mat v p n (UV 0 0)
-    Just (MatUVHit p n uv _ mat) -> irradiance depth scene mat v p n uv
+    Just (MatHit p n uv _ mat) -> irradiance depth scene mat v p n uv
     Nothing -> black
 
 tracePixel :: Scene -> Double -> Double -> (Double, Double) -> Color
@@ -191,22 +188,27 @@ out = Scene [Object (geom $ Sphere (Vec 0.5 (-0.5) 3.2) 0.5)
             [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
              Point (Vec 0 1.5 3) (gray 2000) 0.1]
 
-{-
 cBox :: Scene
-cBox = Scene [Object (geom $ Sphere (Vec 0.5 (-0.6)    1) 0.4) (Plastic red 1.9),
+cBox = Scene [Object (geom $ Sphere (Vec 0.5 (-0.6)    1) 0.4)
+              (Plastic (Flat red) 1.9),
               Object (geom $ Sphere (Vec (0.7) (0.7) 1.7) 0.22) (Mirror 0.1),
-              Object (geom $ Sphere (Vec (-0.4) (-0.8) 0.4) 0.2) (Diffuse green),
+              Object (geom $ Sphere (Vec (-0.4) (-0.8) 0.4) 0.2)
+              (Diffuse (Flat green)),
               Object (geom $ Sphere (Vec (0.1) (-0.3) 0.3) 0.2) (Transparent 1.5),
               Object (geom $ Sphere lightPos 0.1) (Emmit white),
-              Object (geom $ Plane (Vec 0 0 2) (-zAxis)) (Diffuse (gray 2)),
-              Object (geom $ Plane (Vec 1 0 0) (-xAxis)) (Diffuse green),
-              Object (geom $ Plane (Vec (-1) 0 0) (xAxis)) (Diffuse red),
-              Object (geom $ Plane (Vec 0 1 0) (-yAxis)) (Diffuse (gray 2)),
-              Object (geom $ Plane (Vec 0 (-1) 0) yAxis) (Plastic (gray 2) 2)]
+              Object (geom $ Plane (Vec 0 0 2) (-zAxis) xAxis)
+              (Diffuse $ Flat (gray 2)),
+              Object (geom $ Plane (Vec 1 0 0) (-xAxis) yAxis)
+              (Diffuse $ Flat green),
+              Object (geom $ Plane (Vec (-1) 0 0) (xAxis) yAxis)
+              (Diffuse $ Flat red),
+              Object (geom $ Plane (Vec 0 1 0) (-yAxis) zAxis)
+              (Diffuse $ Flat (gray 2)),
+              Object (geom $ Plane (Vec 0 (-1) 0) yAxis zAxis)
+              (Plastic (CheckerBoard black (gray 2) 0.25) 2)]
        [Point (Vec 0 0.9 0.75) (gray 200) 0.1,
         Point lightPos (gray 50) 0.1]
   where lightPos = Vec 0.6 (-0.4) 0.2
--}
 
 maxDepth :: Int
 maxDepth = 3
@@ -214,20 +216,18 @@ maxDepth = 3
 main :: IO ()
 main = do
   args <- getArgs
-  {-
-  cube <- readOBJ "cube.obj"
+  cube <- readOBJ "data/cube.obj"
   let c = translate cube (Vec (-0.4) (-0.6) 1.5)
-  torus <- readOBJ "torus.obj"
+  torus <- readOBJ "data/torus.obj"
   let t = translate torus (Vec (-0.4) (0.15) 1.5)
-             (addMesh
-                (addMesh cBox c (Plastic (gray 1.5) 1.9))
-                t (Plastic yellow 1.7))
-  -}
-  uvtorus <- readOBJ "uvtorus.obj"
+  {-
+  uvtorus <- readOBJ "data/uvtorus.obj"
   let uvt = translate uvtorus (Vec (-0.4) (-1) 0.5)
+  -}
   let output = rayTrace
-               (addMesh out uvt
-                (Diffuse (CheckerBoard blue white 2)))
-               1024 1024
+               (addMesh
+                (addMesh cBox c (Plastic (Flat (gray 1.5)) 1.9))
+                t (Plastic (Flat yellow) 1.7))
+               512 512
   writePPM "out.ppm" output
   putStrLn "done!"

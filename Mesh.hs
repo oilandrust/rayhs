@@ -44,9 +44,9 @@ rayInterMesh ray mesh = do
 
 
 -- Convenience type to store 3 vertices
-type TriVec = (Vertex, Vertex, Vertex)
+type Triangle = (Vertex, Vertex, Vertex)
 
-triLookup :: Vector Vertex -> (Int, Int, Int) -> TriVec
+triLookup :: Vector Vertex -> (Int, Int, Int) -> Triangle
 triLookup verts (i, j, k) = (verts ! i, verts ! j, verts ! k)
 
 barycentricInterp :: (Num a, Ext a) =>
@@ -54,14 +54,14 @@ barycentricInterp :: (Num a, Ext a) =>
                      -> a
 barycentricInterp a p b q c r = (mul a p) + (mul b q) + (mul c r)
 
-triangleIntersection :: Ray -> TriVec -> Maybe Hit
+triangleIntersection :: Ray -> Triangle -> Maybe Hit
 triangleIntersection ray@(Ray o d) ((p0,n0,uv0), (p1,n1,uv1), (p2,n2,uv2)) = do
   case (abs(det) < eps ||
         u < 0 || u > 1 ||
         v < 0 || (u + v) > 1 ||
         t < eps) of
     True -> Nothing
-    False -> Just $ UVHit (rayAt ray t) n uv t 
+    False -> Just $ Hit (rayAt ray t) n uv t 
   where e1 = p1 - p0
         e2 = p2 - p0
         p = cross d e2
@@ -76,17 +76,20 @@ triangleIntersection ray@(Ray o d) ((p0,n0,uv0), (p1,n1,uv1), (p2,n2,uv2)) = do
         uv = barycentricInterp u uv1 v uv2 (1-u-v) uv0
 
 translate :: Mesh -> Vec -> Mesh
-translate mesh t = mapVertices (\(p,n,uv) -> (p+t,n,uv)) mesh
+translate mesh t = transformVertices (\(p,n,uv) -> (p+t,n,uv)) mesh
 
 {- Mapping functions -}
-mapTriangles :: (TriVec -> b) -> Mesh -> [b]
-mapTriangles f (Mesh vertices indices) =
-  map f (map (\ids -> (triLookup vertices ids)) (faces indices))
+triangles :: Mesh -> [Triangle]
+triangles (Mesh vertices indices) =
+  (map (\ids -> (triLookup vertices ids)) (faces indices))
   where faces [] = []
         faces (i:j:k:is) = (i, j, k):(faces is)
 
-mapVertices :: (Vertex -> Vertex) -> Mesh -> Mesh
-mapVertices f mesh = Mesh (V.map f (vertices mesh)) (indices mesh)
+mapTriangles :: (Triangle -> b) -> Mesh -> [b]
+mapTriangles f mesh = map f (triangles mesh)
+
+transformVertices :: (Vertex -> Vertex) -> Mesh -> Mesh
+transformVertices f mesh = Mesh (V.map f (vertices mesh)) (indices mesh)
 
 {- Obj Loading -}
 

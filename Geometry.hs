@@ -29,8 +29,7 @@ rayEps :: Vec -> Vec -> Ray
 rayEps p n = Ray (p + (Vec.mul eps n)) n
 
 {- Intersection hit -}
-data Hit = Hit { p :: Position, n :: Normal, t :: Double }
-         | UVHit { p :: Position, n :: Normal, uv :: UV, t :: Double }
+data Hit = Hit { p :: Position, n :: Normal, uv :: UV, t :: Double }
          deriving Show
 
 {- Geometry Class -}
@@ -55,7 +54,7 @@ instance Inter Shape where
 
 rayShapeIntersection :: Ray -> Shape -> Maybe Hit
 rayShapeIntersection ray@(Ray o d) (Plane p n t)
-  | (abs dDotn) > 0 && time > 0 = Just (UVHit pos n (UV u v) time)
+  | (abs dDotn) > 0 && time > 0 = Just (Hit pos n (UV u v) time)
   | otherwise = Nothing
     where dDotn = dot d n
           time = dot n (p - o) / dDotn
@@ -67,8 +66,8 @@ rayShapeIntersection ray@(Ray o d) (Plane p n t)
                
 rayShapeIntersection ray@(Ray o d) (Sphere ct r)
   | delta < 0.0 = Nothing
-  | t0 > 0 = Just (UVHit p0 n0 (polar n0) t0)
-  | t1 > 0 = Just (UVHit p1 n1 (polar n1) t1)
+  | t0 > 0 = Just (Hit p0 n0 (polar n0) t0)
+  | t1 > 0 = Just (Hit p1 n1 (polar n1) t1)
   | otherwise = Nothing
   where delta = b ^ (2 :: Int) - 4.0*a*c
         a = dot d d
