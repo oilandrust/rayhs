@@ -7,6 +7,7 @@ module Geometry (Ray(..)
                 , Hit(..)
                 , Inter
                 , intersection
+                , closestHit
                 , Geometry(..)
                 , geom
                 , Shape(..)
@@ -14,6 +15,10 @@ module Geometry (Ray(..)
 
 import Math
 import Vec
+
+import Data.List
+import Data.Maybe
+import Data.Function
 
 {- Ray -}
 data Ray = Ray { origin :: Vec
@@ -42,6 +47,11 @@ geom = Geometry
 
 instance Inter Geometry where
   intersection ray (Geometry a) = intersection ray a
+
+closestHit :: [Maybe Hit] -> Maybe Hit
+closestHit hits = case (catMaybes hits) of
+  [] -> Nothing
+  xs -> Just $ minimumBy (compare `on` t) xs
 
 {- Ray/Primitives intersection -}
 

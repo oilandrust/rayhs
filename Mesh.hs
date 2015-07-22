@@ -1,4 +1,8 @@
 module Mesh (Mesh(..)
+            , Vertex
+            , Triangle
+            , triangleIntersection
+            , triangles
             , readOBJ
             , translate) where
 
@@ -36,12 +40,7 @@ instance Inter Mesh where
 
 {- Ray Intersection -}
 rayInterMesh :: Ray -> Mesh -> Maybe Hit
-rayInterMesh ray mesh = do
-  let hits = catMaybes $ mapTriangles (triangleIntersection ray) mesh
-    in case hits of
-    [] -> Nothing
-    xs -> Just $ minimumBy (compare `on` t) xs
-
+rayInterMesh ray mesh = closestHit $ mapTriangles (triangleIntersection ray) mesh
 
 -- Convenience type to store 3 vertices
 type Triangle = (Vertex, Vertex, Vertex)

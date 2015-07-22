@@ -40,6 +40,7 @@ import Material
 import Geometry hiding (intersection)
 import Mesh
 import Projection
+import KDTree
 
 import qualified Vec (o)
 import qualified Geometry as Geom (intersection)
@@ -60,7 +61,7 @@ data Object = Object Geometry Material
 data Scene = Scene { shapes :: [Object], lights :: [Light] }
 
 addMesh :: Scene -> Mesh -> Material -> Scene
-addMesh (Scene s l) m mat = Scene (s++[Object (geom m) mat]) l
+addMesh (Scene s l) m mat = Scene (s++[Object (geom $ buildKDTree m) mat]) l
 
 data MatHit = MatHit { position :: Vec
                      , normal :: Vec
