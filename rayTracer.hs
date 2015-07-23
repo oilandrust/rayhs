@@ -60,9 +60,6 @@ data Object = Object Geometry Material
 
 data Scene = Scene { shapes :: [Object], lights :: [Light] }
 
-addMesh :: Scene -> Mesh -> Material -> Scene
-addMesh (Scene s l) m mat = Scene (s++[Object (geom $ buildKDTree m) mat]) l
-
 data MatHit = MatHit { position :: Vec
                      , normal :: Vec
                      , uv :: UV
@@ -129,7 +126,7 @@ irradiance d scene@(Scene shapes lights) (Plastic cdMap ior) v p n uv =
   accumDiffuse shapes lights p n cd
   + (mul (fresnel ior (dot n (-v))) (specular scene d v p n))
   where cd = colorAt cdMap uv
-        
+
 {- Mirror -}
 irradiance d scene (Mirror ior) v p n _ =
   (mul (fresnel ior (dot n (-v))) (specular scene d v p n))
@@ -147,8 +144,8 @@ irradiance depth scene (Transparent ior) v p n _ =
   where transmitedRadiance  
           | depth == maxDepth = Nothing
           | otherwise = do
-            refRay <- (liftM $ rayEps p) (refract v n 1.0 ior)
-            (MatHit outp outn _ _ _) <- (closestIntersection (shapes scene)) refRay
+            refr <- (liftM $ rayEps p) (refract v n 1.0 ior)
+            (MatHit outp outn _ _ _) <- (closestIntersection (shapes scene)) refr
             outRay <- liftM (rayEps outp)
                       (refract (direction refRay) (-outn) ior 1.0)
             return $ traceRay scene outRay (depth+1)
@@ -176,59 +173,87 @@ rayTrace scene w h = generatePixels w h
                       (fromIntegral w)
                       (fromIntegral h))
 
-{- Test Data -}
-out :: Scene
-out = Scene [Object (geom $ Sphere (Vec 0.5 (-0.5) 3.2) 0.5)
-             (Plastic (CheckerBoard red yellow 0.2) 1.9),
-             Object (geom $ Sphere (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
-             Object (geom $ Sphere (Vec (-0.1) (-0.8) 2) 0.2)
-             (Diffuse (Flat green)),
-             Object (geom $ Sphere (Vec 0 2 3) 0.1) (Emmit (gray 0.8)),
-             Object (geom $ Plane (Vec 0 (-1) 0) yAxis xAxis)
-             (Plastic (CheckerBoard black white 2) 1.7)]
-            [Directional (normalize (Vec 1 0.7 (-1))) (gray 1.2),
-             Point (Vec 0 1.5 3) (gray 2000) 0.1]
+{- Scene Descriptor -}
+data GeometryDesc = MeshDesc String Vec
+                  | SphereDesc Vec Double
+                  | PlaneDesc Vec Vec Vec
 
-cBox :: Scene
-cBox = Scene [Object (geom $ Sphere (Vec 0.5 (-0.6)    1) 0.4)
-              (Plastic (Flat red) 1.9),
-              Object (geom $ Sphere (Vec (0.7) (0.7) 1.7) 0.22) (Mirror 0.1),
-              Object (geom $ Sphere (Vec (-0.4) (-0.8) 0.4) 0.2)
-              (Diffuse (Flat green)),
-              Object (geom $ Sphere (Vec (0.1) (-0.3) 0.3) 0.2) (Transparent 1.5),
-              Object (geom $ Sphere lightPos 0.1) (Emmit white),
-              Object (geom $ Plane (Vec 0 0 2) (-zAxis) xAxis)
-              (Diffuse $ Flat (gray 2)),
-              Object (geom $ Plane (Vec 1 0 0) (-xAxis) yAxis)
-              (Diffuse $ Flat green),
-              Object (geom $ Plane (Vec (-1) 0 0) (xAxis) yAxis)
-              (Diffuse $ Flat red),
-              Object (geom $ Plane (Vec 0 1 0) (-yAxis) zAxis)
-              (Diffuse $ Flat (gray 2)),
-              Object (geom $ Plane (Vec 0 (-1) 0) yAxis zAxis)
-              (Plastic (CheckerBoard black (gray 2) 0.25) 2)]
+type ObjectDesc = (GeometryDesc, Material)
+
+type SceneDesc = ([ObjectDesc], [Light])
+
+buildScene :: SceneDesc -> IO(Scene)
+buildScene (objectDescs, lights) = do
+  objects <- mapM buildObject objectDescs
+  return $ Scene objects lights
+
+buildObject :: ObjectDesc -> IO(Object)
+buildObject (desc, mat) = do
+  geometry <- buildGeometry desc
+  return $ Object geometry mat
+
+buildGeometry :: GeometryDesc -> IO(Geometry)
+buildGeometry (PlaneDesc p n t) = return (geom $ Plane p n t)
+buildGeometry (SphereDesc c r) = return (geom $ Sphere c r)
+buildGeometry (MeshDesc filename pos) = do
+  mesh <- readOBJ filename
+  return (geom $ buildKDTree (translate mesh pos))
+
+{- Test Data -}
+out :: SceneDesc
+out = ([(SphereDesc (Vec 0.5 (-0.5) 3.2) 0.5,
+         Plastic (CheckerBoard red yellow 0.2) 1.9),
+        (SphereDesc (Vec (-0.7) (-0.6) 3.3) 0.4, Mirror 0.1),
+        (SphereDesc (Vec (-0.1) (-0.8) 2) 0.2, (Diffuse (Flat green))),
+        (SphereDesc (Vec 0 2 3) 0.1, Emmit (gray 0.8)),
+        (PlaneDesc (Vec 0 (-1) 0) yAxis xAxis,
+         Plastic (CheckerBoard black white 2) 1.7),
+        (MeshDesc "data/cube.obj" boxPos,
+         Plastic (Flat (gray 1.5)) 1.9),
+        (MeshDesc "data/torus.obj" (boxPos+torusOffset),
+         Plastic (Flat yellow) 1.7),
+        (MeshDesc "data/uvtorus.obj" (Vec (-0.4) (-1) 0.5),
+         Diffuse (CheckerBoard blue white 2))],
+       -- Lights
+       [Directional (normalize (Vec 1 0.7 (-1))) (gray 1),
+        Point (Vec 0 1.5 3) (gray 1000) 0.1])
+      where boxPos = Vec (-2) (-0.6) 4
+            torusOffset = Vec 0 (0.75) 0
+
+cBox :: SceneDesc
+cBox = ([(SphereDesc (Vec 0.5 (-0.6) 1) 0.4,
+          Plastic (Flat red) 1.9),
+         (SphereDesc (Vec (0.7) (0.7) 1.7) 0.22, Mirror 0.1),
+         (SphereDesc (Vec (-0.4) (-0.8) 0.4) 0.2, Diffuse (Flat green)),
+         (SphereDesc (Vec (0.1) (-0.3) 0.3) 0.2, Transparent 1.5),
+         (SphereDesc lightPos 0.1, Emmit white),
+         (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis,
+          Diffuse $ Flat (gray 2)),
+         (PlaneDesc (Vec 1 0 0) (-xAxis) yAxis,
+          Diffuse $ Flat green),
+         (PlaneDesc (Vec (-1) 0 0) xAxis yAxis,
+          Diffuse $ Flat red),
+         (PlaneDesc (Vec 0 1 0) (-yAxis) zAxis,
+          Diffuse $ Flat (gray 2)),
+         (PlaneDesc (Vec 0 (-1) 0) yAxis zAxis,
+          Plastic (CheckerBoard black (gray 2) 0.25) 2),
+         (MeshDesc "data/cube.obj" boxPos,
+          Plastic (Flat (gray 1.5)) 1.9),
+         (MeshDesc "data/torus.obj" (boxPos+torusOffset),
+          Plastic (Flat yellow) 1.7)],
+        -- lights
        [Point (Vec 0 0.9 0.75) (gray 200) 0.1,
-        Point lightPos (gray 50) 0.1]
+        Point lightPos (gray 50) 0.1])
   where lightPos = Vec 0.6 (-0.4) 0.2
+        boxPos = Vec (-0.4) (-0.6) 1.5
+        torusOffset = Vec 0 (0.75) 0
 
 maxDepth :: Int
-maxDepth = 3
+maxDepth = 5
 
 main :: IO ()
 main = do
-  args <- getArgs
-  cube <- readOBJ "data/cube.obj"
-  let c = translate cube (Vec (-0.4) (-0.6) 1.5)
-  torus <- readOBJ "data/torus.obj"
-  let t = translate torus (Vec (-0.4) (0.15) 1.5)
-  {-
-  uvtorus <- readOBJ "data/uvtorus.obj"
-  let uvt = translate uvtorus (Vec (-0.4) (-1) 0.5)
-  -}
-  let output = rayTrace
-               (addMesh
-                (addMesh cBox c (Plastic (Flat (gray 1.5)) 1.9))
-                t (Plastic (Flat yellow) 1.7))
-               512 512
+  scene <- buildScene out
+  let output = rayTrace scene 512 512
   writePPM "out.ppm" output
   putStrLn "done!"
