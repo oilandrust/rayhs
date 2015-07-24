@@ -1,3 +1,5 @@
+ {-# LANGUAGE DeriveGeneric #-}
+
 module Color (Color(RGB)
              , rgbi
              , black
@@ -11,8 +13,10 @@ module Color (Color(RGB)
 
 import Math
 
+import GHC.Generics
+
 {- Color -}
-data Color = RGB Double Double Double deriving Show
+data Color = RGB Double Double Double deriving (Show, Generic)
 
 instance Num Color where
   (RGB x1 y1 z1) + (RGB x2 y2 z2) = (RGB (x1+x2) (y1+y2) (z1+z2))
