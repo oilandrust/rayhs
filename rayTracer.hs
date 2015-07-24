@@ -147,7 +147,7 @@ irradiance depth scene (Transparent ior) v p n _ =
             refr <- (liftM $ rayEps p) (refract v n 1.0 ior)
             (MatHit outp outn _ _ _) <- (closestIntersection (shapes scene)) refr
             outRay <- liftM (rayEps outp)
-                      (refract (direction refRay) (-outn) ior 1.0)
+                      (refract (direction refr) (-outn) ior 1.0)
             return $ traceRay scene outRay (depth+1)
 
 {- Debug material -}
@@ -200,25 +200,25 @@ buildGeometry (MeshDesc filename pos) = do
   return (geom $ buildKDTree (translate mesh pos))
 
 {- Test Data -}
-out :: SceneDesc
-out = ([(SphereDesc (Vec 0.5 (-0.5) 3.2) 0.5,
-         Plastic (CheckerBoard red yellow 0.2) 1.9),
-        (SphereDesc (Vec (-0.7) (-0.6) 3.3) 0.4, Mirror 0.1),
-        (SphereDesc (Vec (-0.1) (-0.8) 2) 0.2, (Diffuse (Flat green))),
-        (SphereDesc (Vec 0 2 3) 0.1, Emmit (gray 0.8)),
-        (PlaneDesc (Vec 0 (-1) 0) yAxis xAxis,
-         Plastic (CheckerBoard black white 2) 1.7),
-        (MeshDesc "data/cube.obj" boxPos,
-         Plastic (Flat (gray 1.5)) 1.9),
-        (MeshDesc "data/torus.obj" (boxPos+torusOffset),
-         Plastic (Flat yellow) 1.7),
-        (MeshDesc "data/uvtorus.obj" (Vec (-0.4) (-1) 0.5),
-         Diffuse (CheckerBoard blue white 2))],
-       -- Lights
-       [Directional (normalize (Vec 1 0.7 (-1))) (gray 1),
-        Point (Vec 0 1.5 3) (gray 1000) 0.1])
-      where boxPos = Vec (-2) (-0.6) 4
-            torusOffset = Vec 0 (0.75) 0
+outScene :: SceneDesc
+outScene = ([(SphereDesc (Vec 0.5 (-0.5) 3.2) 0.5,
+              Plastic (CheckerBoard red yellow 0.2) 1.9),
+             (SphereDesc (Vec (-0.7) (-0.6) 3.3) 0.4, Mirror 0.1),
+             (SphereDesc (Vec (-0.1) (-0.8) 2) 0.2, (Diffuse (Flat green))),
+             (SphereDesc (Vec 0 2 3) 0.1, Emmit (gray 0.8)),
+             (PlaneDesc (Vec 0 (-1) 0) yAxis xAxis,
+              Plastic (CheckerBoard black white 2) 1.7),
+             (MeshDesc "data/cube.obj" boxPos,
+              Plastic (Flat (gray 1.5)) 1.9),
+             (MeshDesc "data/torus.obj" (boxPos+torusOffset),
+              Plastic (Flat yellow) 1.7),
+             (MeshDesc "data/uvtorus.obj" (Vec (-0.4) (-1) 0.5),
+              Diffuse (CheckerBoard blue white 2))],
+            -- Lights
+            [Directional (normalize (Vec 1 0.7 (-1))) (gray 1),
+             Point (Vec 0 1.5 3) (gray 1000) 0.1])
+  where boxPos = Vec (-2) (-0.6) 4
+        torusOffset = Vec 0 (0.75) 0
 
 cBox :: SceneDesc
 cBox = ([(SphereDesc (Vec 0.5 (-0.6) 1) 0.4,
@@ -253,7 +253,7 @@ maxDepth = 5
 
 main :: IO ()
 main = do
-  scene <- buildScene out
+  scene <- buildScene outScene
   let output = rayTrace scene 512 512
   writePPM "out.ppm" output
   putStrLn "done!"
