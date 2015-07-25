@@ -23,7 +23,7 @@ rayFromPixel w h (Orthographic pw ph) x y = Ray o (Vec 0 0 1) where
 
 rayFromPixel w h (Perspective f pw ph n) x y = Ray o d where
   o = Vec (apw * (x - (w/2)) / w) (aph * ((-y) + (h/2)) / h) 0
-  d = normalize o - Vec 0 0 (-2)
+  d = normalize $ o - Vec 0 0 (-2)
   aspect = w / h
   (apw, aph) = if aspect > 1
                then (pw, pw/aspect)
