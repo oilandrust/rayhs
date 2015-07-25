@@ -21,20 +21,22 @@ import Data.Maybe
 import Data.Function
 
 {- Ray -}
-data Ray = Ray { origin :: Vec
-               , direction :: Vec } deriving Show
+data Ray = Ray { origin :: !Vec
+               , direction :: !Vec } deriving Show
 
 rayAt :: Ray -> Double -> Vec
+{-# INLINE rayAt #-}
 rayAt (Ray o d) t = o + Vec.mul t d
 
 eps :: Double
 eps = 0.0001
 
 rayEps :: Vec -> Vec -> Ray
+{-# INLINE rayEps #-}
 rayEps p n = Ray (p + Vec.mul eps n) n
 
 {- Intersection hit -}
-data Hit = Hit { p :: Position, n :: Normal, uv :: UV, t :: Double }
+data Hit = Hit { p :: !Position, n :: !Normal, uv :: !UV, t :: !Double }
          deriving Show
 
 {- Geometry Class -}
@@ -56,13 +58,14 @@ closestHit hits = case catMaybes hits of
 {- Ray/Primitives intersection -}
 
 {- Basic shapes -}
-data Shape = Plane { point :: Vec, normal :: Vec, tangent :: Vec}
-           | Sphere { center :: Vec, radius :: Double }
+data Shape = Plane { point :: !Vec, normal :: !Vec, tangent :: !Vec}
+           | Sphere { center :: !Vec, radius :: !Double }
 
 instance Inter Shape where
   intersection = rayShapeIntersection
 
 rayShapeIntersection :: Ray -> Shape -> Maybe Hit
+{-# INLINE rayShapeIntersection #-}
 rayShapeIntersection ray@(Ray o d) (Plane p n t)
   | abs dDotn > 0 && time > 0 = Just (Hit pos n (UV u v) time)
   | otherwise = Nothing

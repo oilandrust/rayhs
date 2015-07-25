@@ -1,5 +1,5 @@
 module Mesh (Mesh(..)
-            , Vertex
+            , Vertex(..)
             , Triangle
             , triangleIntersection
             , triangles
@@ -27,7 +27,7 @@ Also, each index in the indices should be a valid index in the list of normals
 and positions.
 -}
 
-type Vertex = (Position, Normal, UV)
+data Vertex = Vertex !Position !Normal !UV deriving Show
 
 data Mesh = Mesh { vertices :: Vector Vertex
                  , indices :: [Int] } deriving Show
@@ -43,10 +43,10 @@ rayInterMesh :: Ray -> Mesh -> Maybe Hit
 rayInterMesh ray mesh = closestHit $ mapTriangles (triangleIntersection ray) mesh
 
 -- Convenience type to store 3 vertices
-type Triangle = (Vertex, Vertex, Vertex)
+data Triangle = Triangle !Vertex !Vertex !Vertex
 
 triLookup :: Vector Vertex -> (Int, Int, Int) -> Triangle
-triLookup verts (i, j, k) = (verts ! i, verts ! j, verts ! k)
+triLookup verts (i, j, k) = Triangle (verts ! i) (verts ! j) (verts ! k)
 
 barycentricInterp :: (Num a, Ext a) =>
                      Double -> a -> Double -> a -> Double -> a
@@ -54,7 +54,11 @@ barycentricInterp :: (Num a, Ext a) =>
 barycentricInterp a p b q c r = mul a p + mul b q + mul c r
 
 triangleIntersection :: Ray -> Triangle -> Maybe Hit
-triangleIntersection ray@(Ray o d) ((p0,n0,uv0), (p1,n1,uv1), (p2,n2,uv2)) =
+{-# INLINE triangleIntersection #-}
+triangleIntersection ray@(Ray o d) (Triangle
+                                    (Vertex p0 n0 uv0)
+                                    (Vertex p1 n1 uv1)
+                                    (Vertex p2 n2 uv2)) =
   if abs det < eps ||
      u < 0 || u > 1 ||
      v < 0 || (u + v) > 1 ||
@@ -75,7 +79,9 @@ triangleIntersection ray@(Ray o d) ((p0,n0,uv0), (p1,n1,uv1), (p2,n2,uv2)) =
         uv = barycentricInterp u uv1 v uv2 (1-u-v) uv0
 
 translate :: Mesh -> Vec -> Mesh
-translate mesh t = transformVertices (\(p,n,uv) -> (p+t,n,uv)) mesh
+translate mesh t = transformVertices
+                   (\(Vertex p n uv) -> Vertex (p+t) n uv)
+                   mesh
 
 {- Mapping functions -}
 triangles :: Mesh -> [Triangle]
@@ -177,10 +183,14 @@ flattenVertices (pos, norms, uvs, inds) = (verts, ids)
                is ++ [next],
                insertIndex imap id next)
             Just x -> (vs, is ++ [x], imap)
-        mkV (pi, Nothing, Nothing) = (pos!!(pi-1), Vec 0 0 0, UV 0 0)
-        mkV (pi, Just ui, Nothing) = (pos!!(pi-1), Vec 0 0 0, uvs!!(ui-1))
-        mkV (pi, Just ui, Just ni) = (pos!!(pi-1), norms!!(ni-1), uvs!!(ui -1))
-        mkV (pi, Nothing, Just ni) = (pos!!(pi-1), norms!!(ni-1), UV 0 0)
+        mkV (pi, Nothing, Nothing) =
+          Vertex (pos !! (pi-1)) (Vec 0 0 0) (UV 0 0)
+        mkV (pi, Just ui, Nothing) =
+          Vertex (pos !! (pi-1)) (Vec 0 0 0) (uvs !! (ui-1))
+        mkV (pi, Just ui, Just ni) =
+          Vertex (pos !! (pi-1)) (norms !! (ni-1)) (uvs !! (ui -1))
+        mkV (pi, Nothing, Just ni) =
+          Vertex (pos !! (pi-1)) (norms !! (ni-1)) (UV 0 0)
 
 buildMesh :: [OBJToken] -> Mesh
 buildMesh tokens = Mesh (V.fromList verts) ids

@@ -1,1 +1,1 @@
-ghc -isrc -O2 -threaded -rtsopts src/RayHs.hs -o rayhs
+ghc -isrc -O2 -funbox-strict-fields -threaded -rtsopts src/RayHs.hs -o rayhs

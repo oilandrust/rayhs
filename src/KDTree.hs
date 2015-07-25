@@ -10,7 +10,7 @@ import Data.Vector (Vector, cons, (!), (!?), (//))
 import qualified Data.Vector as V
 
 {- Bounding Box -}
-data Box = Box Vec Vec deriving Show
+data Box = Box !Vec !Vec deriving Show
 
 empty :: Box
 empty = Box (Vec inf inf inf) (Vec (-inf) (-inf) (-inf))
@@ -19,16 +19,19 @@ include :: Box -> Vec -> Box
 include (Box min max) p = Box (minV min p) (maxV  max p)
 
 buildBoundingBox :: Mesh -> Box
-buildBoundingBox mesh = V.foldl (\box (p, _, _) -> include box p)
+buildBoundingBox mesh = V.foldl (\box (Vertex p _ _) -> include box p)
                         empty (vertices mesh)
 
 max3 :: Double -> Double -> Double -> Double
+{-# INLINE max3 #-}
 max3 a b = max (max a b)
 
 min3 :: Double -> Double -> Double -> Double
+{-# INLINE min3 #-}
 min3 a b = min (min a b)
 
 rayInterBox :: Ray -> Box -> Maybe Double
+{-# INLINE rayInterBox #-}
 rayInterBox (Ray (Vec ox oy oz) (Vec dx dy dz))
   (Box (Vec mx my mz) (Vec mX mY mZ)) =
   if tmax < 0 || tmin > tmax
@@ -58,6 +61,7 @@ instance Inter KDTree where
   intersection = rayInter
 
 rayInter :: Ray -> KDTree -> Maybe Hit
+{-# INLINE rayInter #-}
 rayInter ray (Leaf bbox triangles) = case rayInterBox ray bbox of
   Nothing -> Nothing
   Just _ -> closestHit $ map (triangleIntersection ray) triangles

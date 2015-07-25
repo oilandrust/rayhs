@@ -29,10 +29,11 @@ import qualified Vec (o)
 import qualified Geometry as Geom (intersection)
 
 {- Light -}
-data Light = Directional { dir :: Vec, col :: Color }
-           | Point { pos :: Vec, col :: Color, r :: Double } deriving Show
+data Light = Directional { dir :: !Vec, col :: !Color }
+           | Point { pos :: !Vec, col :: !Color, r :: !Double } deriving Show
 
 lightAt :: Light -> Vec -> (Vec, Color)
+{-# INLINE lightAt #-}
 lightAt (Directional d c) _ = (d, c)
 lightAt (Point p0 c r) p = (Vec.mul (1/d) (p0 - p), mul falloff c)
   where falloff = 1.0 / (1.0 + d/r)^(2::Int)
@@ -43,19 +44,21 @@ data Object = Object Geometry Material
 
 data Scene = Scene { shapes :: [Object], lights :: [Light] }
 
-data MatHit = MatHit { position :: Vec
-                     , normal :: Vec
-                     , uv :: UV
-                     , time :: Double
-                     , material :: Material } deriving Show
+data MatHit = MatHit { position :: !Vec
+                     , normal :: !Vec
+                     , uv :: !UV
+                     , time :: !Double
+                     , material :: !Material } deriving Show
 
 intersection :: Ray -> Object -> Maybe MatHit
+{-# INLINE intersection #-}
 intersection ray (Object shape material) = do
   hit <- Geom.intersection ray shape
   case hit of
     (Hit p n uv t) -> return (MatHit p n uv t material)
 
 intersections :: [Object] -> Ray -> [MatHit]
+{-# INLINE intersections #-}
 intersections scene ray = mapMaybe (intersection ray) scene
 
 closestIntersection :: [Object] -> Ray -> Maybe MatHit
@@ -66,6 +69,7 @@ closestIntersection scene r = case hits of
 
 {- trace ray towards light to see if occluded -}
 shadowIntersection :: [Object] -> Light -> Ray -> Maybe MatHit
+{-# INLINE shadowIntersection #-}
 shadowIntersection scene light ray = case hits of
   [] -> Nothing
   _  -> Just $ minimumBy (compare `on` time) hits
@@ -78,6 +82,7 @@ shadowIntersection scene light ray = case hits of
                            sqrDist (position hit) (origin ray)
 
 accumDiffuse :: [Object] -> [Light] -> Vec -> Vec -> Color -> Color
+{-# INLINE accumDiffuse #-}
 accumDiffuse sc lts p n color =
   foldl (\c l -> c + diffFromLight l) black lts
   where diffFromLight light =
@@ -88,6 +93,7 @@ accumDiffuse sc lts p n color =
           where (ld, lc) = lightAt light p
 
 specular :: Scene -> Int -> Vec -> Vec -> Vec -> Color
+{-# INLINE specular #-}
 specular scene depth v p n
   | depth < maxDepth = mul (dot (reflect v n) n)
                        (traceRay scene
@@ -97,7 +103,7 @@ specular scene depth v p n
 {- Irradiance comutation at a point with view direction, normal and material -}
 irradiance :: Int -> Scene -> Material ->
               Direction -> Position -> Normal -> UV -> Color
-
+{-# INLINE irradiance #-}
 {- Diffuse + Ambient -}
 irradiance _ (Scene shapes lights) (Diffuse cdMap) _ p n uv =
   mul 0.2 cd +
