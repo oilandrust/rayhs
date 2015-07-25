@@ -17,4 +17,4 @@ There is an aditional script test.sh that builds the program, runs it and opens 
 Currently only ppm file format is suported for output, these files can be opened by The Gimp for example.
 
 Currently the scenes to be rendered are hardcoded in the source, at the end of RayHs.hs.
-You can edit the resolution of the output image at the end of RayHS.hs.
+You can edit the resolution of the output image at the end of RayHs.hs.
