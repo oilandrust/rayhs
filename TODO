@@ -1,0 +1,13 @@
+-Mesh without normals, has uv?
+-Correct Projections
+-Allow camera and object transformations
+-Correct transmitted radiance
+-Multisampling
+-Texture loading
+-Texture antialiasing
+-ior modulate
+-kDTree
+
+-Transparent shadows
+-Glossy BRDFs
+-Path Tracing

@@ -1,4 +1,4 @@
- {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Color (Color(RGB)
              , rgbi
@@ -19,10 +19,10 @@ import GHC.Generics
 data Color = RGB Double Double Double deriving (Show, Generic)
 
 instance Num Color where
-  (RGB x1 y1 z1) + (RGB x2 y2 z2) = (RGB (x1+x2) (y1+y2) (z1+z2))
-  (RGB x1 y1 z1) * (RGB x2 y2 z2) = (RGB (x1*x2) (y1*y2) (z1*z2))
-  (RGB x1 y1 z1) - (RGB x2 y2 z2) = (RGB (x1-x2) (y1-y2) (z1-z2))
-  negate (RGB x y z) = (RGB (-x) (-y) (-z))  
+  (RGB x1 y1 z1) + (RGB x2 y2 z2) = RGB (x1+x2) (y1+y2) (z1+z2)
+  (RGB x1 y1 z1) * (RGB x2 y2 z2) = RGB (x1*x2) (y1*y2) (z1*z2)
+  (RGB x1 y1 z1) - (RGB x2 y2 z2) = RGB (x1-x2) (y1-y2) (z1-z2)
+  negate (RGB x y z) = RGB (-x) (-y) (-z)
 
 rgbi :: Int -> Int -> Int -> Color
 rgbi r g b = RGB (fdiv r 255) (fdiv r 255) (fdiv r 255)

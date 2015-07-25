@@ -1,22 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE OverloadedStrings, RecordWildCards #-}
-
-{-
-TOTO:
--Mesh without normals, has uv?
--Correct Projections
--Allow camera and object transformations
--Correct transmitted radiance
--Multisampling
--Texture loading
--Texture antialiasing
--ior modulate
--kDTree
-
--Transparent shadows
--Glossy BRDFs
--Path Tracing
--}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
@@ -73,7 +56,7 @@ intersection ray (Object shape material) = do
     (Hit p n uv t) -> return (MatHit p n uv t material)
 
 intersections :: [Object] -> Ray -> [MatHit]
-intersections scene ray = catMaybes $ map (intersection ray) scene
+intersections scene ray = mapMaybe (intersection ray) scene
 
 closestIntersection :: [Object] -> Ray -> Maybe MatHit
 closestIntersection scene r = case hits of
@@ -91,17 +74,17 @@ shadowIntersection scene light ray = case hits of
         isOccluder _ = True
         inFrontOfLight hit = case light of
           (Directional _ _) -> True
-          (Point p _ _) -> (sqrDist (origin ray) p) >
-                           (sqrDist (position hit) (origin ray))
+          (Point p _ _) -> sqrDist (origin ray) p >
+                           sqrDist (position hit) (origin ray)
 
 accumDiffuse :: [Object] -> [Light] -> Vec -> Vec -> Color -> Color
 accumDiffuse sc lts p n color =
-  foldl (\c l -> c + (diffFromLight l)) black lts
+  foldl (\c l -> c + diffFromLight l) black lts
   where diffFromLight light =
           let inter = shadowIntersection sc light (rayEps p ld)
           in case inter of
             Just _ -> black
-            Nothing -> (diffuse color lc ld n)
+            Nothing -> diffuse color lc ld n
           where (ld, lc) = lightAt light p
 
 specular :: Scene -> Int -> Vec -> Vec -> Vec -> Color
@@ -110,42 +93,42 @@ specular scene depth v p n
                        (traceRay scene
                        (rayEps p (reflect v n)) (depth+1))
   | otherwise = black
-        
+
 {- Irradiance comutation at a point with view direction, normal and material -}
 irradiance :: Int -> Scene -> Material ->
               Direction -> Position -> Normal -> UV -> Color
 
 {- Diffuse + Ambient -}
 irradiance _ (Scene shapes lights) (Diffuse cdMap) _ p n uv =
-  (mul 0.2 cd) +
+  mul 0.2 cd +
   accumDiffuse shapes lights p n cd
   where cd = colorAt cdMap uv
 
 {- Plastic -}
 irradiance d scene@(Scene shapes lights) (Plastic cdMap ior) v p n uv =
   accumDiffuse shapes lights p n cd
-  + (mul (fresnel ior (dot n (-v))) (specular scene d v p n))
+  + mul (fresnel ior (dot n (-v))) (specular scene d v p n)
   where cd = colorAt cdMap uv
 
 {- Mirror -}
 irradiance d scene (Mirror ior) v p n _ =
-  (mul (fresnel ior (dot n (-v))) (specular scene d v p n))
+  mul (fresnel ior (dot n (-v))) (specular scene d v p n)
 
 {- Emmitter -}
-irradiance _ _ (Emmit ce) _ _ _ _ = ce 
+irradiance _ _ (Emmit ce) _ _ _ _ = ce
 
 {- Transparent -}
 irradiance depth scene (Transparent ior) v p n _ =
   case transmitedRadiance of
-    Nothing -> (mul (fresnel ior (dot n (-v))) (specular scene depth v p n))
-    Just radiance -> (mul (1-(r0 ior 1.0)) radiance)
-                     + (mul (fresnel ior (dot n (-v)))
-                        (specular scene depth v p n))
-  where transmitedRadiance  
+    Nothing -> mul (fresnel ior (dot n (-v))) (specular scene depth v p n)
+    Just radiance -> mul (1 - r0 ior 1.0) radiance
+                     + mul (fresnel ior (dot n (-v)))
+                     (specular scene depth v p n)
+  where transmitedRadiance
           | depth == maxDepth = Nothing
           | otherwise = do
             refr <- (liftM $ rayEps p) (refract v n 1.0 ior)
-            (MatHit outp outn _ _ _) <- (closestIntersection (shapes scene)) refr
+            (MatHit outp outn _ _ _) <- closestIntersection (shapes scene) refr
             outRay <- liftM (rayEps outp)
                       (refract (direction refr) (-outn) ior 1.0)
             return $ traceRay scene outRay (depth+1)
@@ -163,9 +146,7 @@ traceRay scene ray@(Ray _ v) depth =
 
 tracePixel :: Scene -> Double -> Double -> (Double, Double) -> Color
 tracePixel scene w h (i, j) = traceRay scene ray 0
-  where ray = (rayFromPixel w h
-               (Perspective 0 2 2 0.1)
-               i j)
+  where ray = rayFromPixel w h (Perspective 0 2 2 0.1) i j
 
 rayTrace :: Scene -> Int -> Int -> Image
 rayTrace scene w h = generatePixels w h
@@ -182,17 +163,17 @@ type ObjectDesc = (GeometryDesc, Material)
 
 type SceneDesc = ([ObjectDesc], [Light])
 
-buildScene :: SceneDesc -> IO(Scene)
+buildScene :: SceneDesc -> IO Scene
 buildScene (objectDescs, lights) = do
   objects <- mapM buildObject objectDescs
   return $ Scene objects lights
 
-buildObject :: ObjectDesc -> IO(Object)
+buildObject :: ObjectDesc -> IO Object
 buildObject (desc, mat) = do
   geometry <- buildGeometry desc
   return $ Object geometry mat
 
-buildGeometry :: GeometryDesc -> IO(Geometry)
+buildGeometry :: GeometryDesc -> IO Geometry
 buildGeometry (PlaneDesc p n t) = return (geom $ Plane p n t)
 buildGeometry (SphereDesc c r) = return (geom $ Sphere c r)
 buildGeometry (MeshDesc filename pos) = do
@@ -204,7 +185,7 @@ outScene :: SceneDesc
 outScene = ([(SphereDesc (Vec 0.5 (-0.5) 3.2) 0.5,
               Plastic (CheckerBoard red yellow 0.2) 1.9),
              (SphereDesc (Vec (-0.7) (-0.6) 3.3) 0.4, Mirror 0.1),
-             (SphereDesc (Vec (-0.1) (-0.8) 2) 0.2, (Diffuse (Flat green))),
+             (SphereDesc (Vec (-0.1) (-0.8) 2) 0.2, Diffuse (Flat green)),
              (SphereDesc (Vec 0 2 3) 0.1, Emmit (gray 0.8)),
              (PlaneDesc (Vec 0 (-1) 0) yAxis xAxis,
               Plastic (CheckerBoard black white 2) 1.7),
@@ -218,14 +199,14 @@ outScene = ([(SphereDesc (Vec 0.5 (-0.5) 3.2) 0.5,
             [Directional (normalize (Vec 1 0.7 (-1))) (gray 1),
              Point (Vec 0 1.5 3) (gray 1000) 0.1])
   where boxPos = Vec (-2) (-0.6) 4
-        torusOffset = Vec 0 (0.75) 0
+        torusOffset = Vec 0 0.75 0
 
 cBox :: SceneDesc
 cBox = ([(SphereDesc (Vec 0.5 (-0.6) 1) 0.4,
           Plastic (Flat red) 1.9),
-         (SphereDesc (Vec (0.7) (0.7) 1.7) 0.22, Mirror 0.1),
+         (SphereDesc (Vec 0.7 0.7 1.7) 0.22, Mirror 0.1),
          (SphereDesc (Vec (-0.4) (-0.8) 0.4) 0.2, Diffuse (Flat green)),
-         (SphereDesc (Vec (0.1) (-0.3) 0.3) 0.2, Transparent 1.5),
+         (SphereDesc (Vec 0.1 (-0.3) 0.3) 0.2, Transparent 1.5),
          (SphereDesc lightPos 0.1, Emmit white),
          (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis,
           Diffuse $ Flat (gray 2)),
@@ -246,7 +227,7 @@ cBox = ([(SphereDesc (Vec 0.5 (-0.6) 1) 0.4,
         Point lightPos (gray 50) 0.1])
   where lightPos = Vec 0.6 (-0.4) 0.2
         boxPos = Vec (-0.4) (-0.6) 1.5
-        torusOffset = Vec 0 (0.75) 0
+        torusOffset = Vec 0 0.75 0
 
 maxDepth :: Int
 maxDepth = 5

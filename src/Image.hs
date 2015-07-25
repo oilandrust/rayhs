@@ -21,14 +21,14 @@ data Image = Image { width  :: Int
 
 mapPixels :: (Color -> (Int, Int) -> Color) -> Image -> Image
 mapPixels f (Image w h px) = Image w h (zipWith f px indices)
-  where indices = [(x,y) | y <- [0..h-1], x <- [0..w-1]] 
+  where indices = [(x,y) | y <- [0..h-1], x <- [0..w-1]]
 
 instance NFData Color
 
 generatePixels :: Int -> Int -> ((Double, Double) -> Color) -> Image
 generatePixels w h f = Image w h (parMap rdeepseq
-                                  (\i -> f ((fromIntegral (i `mod` w)),
-                                            (fromIntegral (i `div` w))))
+                                  (\i -> f (fromIntegral (i `mod` w),
+                                            fromIntegral (i `div` w)))
                                   [0..(w*h)]
                                  )
 
@@ -44,21 +44,21 @@ emptyImage :: Int -> Int -> Image
 emptyImage w h = solidImage w h black
 
 toIntC :: Double -> Int
-toIntC c = truncate (255 * (min c 1))
+toIntC c = truncate $ 255 * min c 1
 
 formatPixelsPPM :: Image -> String
-formatPixelsPPM (Image w h pix) = concat $ intercalate ["\n"] 
-                                  [[(formatPixel
-                                     ((V.fromList pix) ! (x+w*y)) ++ "  ")
+formatPixelsPPM (Image w h pix) = concat $ intercalate ["\n"]
+                                  [[formatPixel
+                                     (V.fromList pix ! (x+w*y)) ++ "  "
                                    | x <- [0..(w-1)]]
                                    | y <- [0..(h-1)]]
-  where formatPixel (RGB r g b) = (show $ toIntC r)
-                                  ++ " " ++ (show $ toIntC g)
-                                  ++ " " ++ (show $ toIntC b) 
+  where formatPixel (RGB r g b) = show (toIntC r)
+                                  ++ " " ++ show (toIntC g)
+                                  ++ " " ++ show (toIntC b)
 
 writePPM :: String -> Image -> IO()
 writePPM path image = do
-  let content = "P3\n" ++ (show (width image))
-                ++ " " ++ (show (height image)) ++ "\n255\n"
-                ++ (formatPixelsPPM image)
+  let content = "P3\n" ++ show (width image)
+                ++ " " ++ show (height image) ++ "\n255\n"
+                ++ formatPixelsPPM image
   writeFile path content

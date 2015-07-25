@@ -32,16 +32,16 @@ data UV = UV { u :: Double,
                v :: Double } deriving (Eq, Show)
 
 instance Num Vec where
-  (Vec x1 y1 z1) + (Vec x2 y2 z2) = (Vec (x1+x2) (y1+y2) (z1+z2))
-  (Vec x1 y1 z1) * (Vec x2 y2 z2) = (Vec (x1*x2) (y1*y2) (z1*z2))
-  (Vec x1 y1 z1) - (Vec x2 y2 z2) = (Vec (x1-x2) (y1-y2) (z1-z2))
-  negate (Vec x y z) = (Vec (-x) (-y) (-z))  
+  (Vec x1 y1 z1) + (Vec x2 y2 z2) = Vec (x1+x2) (y1+y2) (z1+z2)
+  (Vec x1 y1 z1) * (Vec x2 y2 z2) = Vec (x1*x2) (y1*y2) (z1*z2)
+  (Vec x1 y1 z1) - (Vec x2 y2 z2) = Vec (x1-x2) (y1-y2) (z1-z2)
+  negate (Vec x y z) = Vec (-x) (-y) (-z)
 
 instance Num UV where
-  (UV x1 y1) + (UV x2 y2) = (UV (x1+x2) (y1+y2))
-  (UV x1 y1) * (UV x2 y2) = (UV (x1*x2) (y1*y2))
-  (UV x1 y1) - (UV x2 y2) = (UV (x1-x2) (y1-y2))
-  negate (UV x y) = (UV (-x) (-y))  
+  (UV x1 y1) + (UV x2 y2) = UV (x1+x2) (y1+y2)
+  (UV x1 y1) * (UV x2 y2) = UV (x1*x2) (y1*y2)
+  (UV x1 y1) - (UV x2 y2) = UV (x1-x2) (y1-y2)
+  negate (UV x y) = UV (-x) (-y)
 
 {- Exterior product -}
 class Ext a where
@@ -97,17 +97,16 @@ normalize :: Vec -> Vec
 normalize v = mul (1 / (sqrt . sqrLen $ v)) v
 
 reflect :: Vec -> Vec -> Vec
-reflect v n = v - (Vec.mul (2 * (dot v n)) n)
+reflect v n = v - mul (2 * dot v n) n
 
 refract :: Vec -> Vec -> Double -> Double -> Maybe Vec
 refract i n n1 n2
-  | sin2θ > 1 = Nothing
-  | otherwise = Just $ (Vec.mul n1n2 i)
-                + (Vec.mul coeff n)
+  | sin20 > 1 = Nothing
+  | otherwise = Just $ mul n1n2 i + mul coeff n
   where n1n2 = n1 / n2
-        cosθ = (-(dot i n))
-        sin2θ = n1n2 * n1n2 * (1 - cosθ*cosθ)
-        coeff = n1n2 * cosθ - (sqrt (1.0-sin2θ))
+        cos0 = -(dot i n)
+        sin20 = n1n2 * n1n2 * (1 - cos0*cos0)
+        coeff = n1n2 * cos0 - sqrt (1.0-sin20)
 
 minV :: Vec -> Vec -> Vec
 minV (Vec a b c) (Vec x y z) = Vec (min a x) (min b y) (min c z)
@@ -117,10 +116,10 @@ maxV (Vec a b c) (Vec x y z) = Vec (max a x) (max b y) (max c z)
 
 {- Type conversions -}
 fromList :: [Double] -> Vec
-fromList d = Vec (d !! 0) (d !! 1) (d !! 2)
+fromList d = Vec (head d) (d !! 1) (d !! 2)
 
 toRGB :: Vec -> Color
-toRGB (Vec x y z) = (RGB x y z)
+toRGB (Vec x y z) = RGB x y z
 
 fromRGB :: Color -> Vec
-fromRGB (RGB x y z) = (Vec x y z)
+fromRGB (RGB x y z) = Vec x y z

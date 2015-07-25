@@ -31,7 +31,7 @@ eps :: Double
 eps = 0.0001
 
 rayEps :: Vec -> Vec -> Ray
-rayEps p n = Ray (p + (Vec.mul eps n)) n
+rayEps p n = Ray (p + Vec.mul eps n) n
 
 {- Intersection hit -}
 data Hit = Hit { p :: Position, n :: Normal, uv :: UV, t :: Double }
@@ -49,7 +49,7 @@ instance Inter Geometry where
   intersection ray (Geometry a) = intersection ray a
 
 closestHit :: [Maybe Hit] -> Maybe Hit
-closestHit hits = case (catMaybes hits) of
+closestHit hits = case catMaybes hits of
   [] -> Nothing
   xs -> Just $ minimumBy (compare `on` t) xs
 
@@ -64,7 +64,7 @@ instance Inter Shape where
 
 rayShapeIntersection :: Ray -> Shape -> Maybe Hit
 rayShapeIntersection ray@(Ray o d) (Plane p n t)
-  | (abs dDotn) > 0 && time > 0 = Just (Hit pos n (UV u v) time)
+  | abs dDotn > 0 && time > 0 = Just (Hit pos n (UV u v) time)
   | otherwise = Nothing
     where dDotn = dot d n
           time = dot n (p - o) / dDotn
@@ -73,7 +73,7 @@ rayShapeIntersection ray@(Ray o d) (Plane p n t)
           rel = pos - p
           u = dot t rel
           v = dot b rel
-               
+
 rayShapeIntersection ray@(Ray o d) (Sphere ct r)
   | delta < 0.0 = Nothing
   | t0 > 0 = Just (Hit p0 n0 (polar n0) t0)
@@ -81,13 +81,12 @@ rayShapeIntersection ray@(Ray o d) (Sphere ct r)
   | otherwise = Nothing
   where delta = b ^ (2 :: Int) - 4.0*a*c
         a = dot d d
-        b = 2.0 * (dot d (o - ct))
-        c = (sqrLen (o - ct)) - r ^ (2 :: Int)
-        t0 = 0.5 * ((-b) - (sqrt delta)) / a
+        b = 2.0 * dot d (o - ct)
+        c = sqrLen (o - ct) - r ^ (2 :: Int)
+        t0 = 0.5 * ((-b) - sqrt delta) / a
         p0 = rayAt ray t0
         n0 = normalize (p0 - ct)
-        t1 = 0.5 * ((-b) + (sqrt delta)) / a
+        t1 = 0.5 * ((-b) + sqrt delta) / a
         p1 = rayAt ray t1
         n1 = normalize (p1 - ct)
-        polar p = UV (piInv * (atan $ (z p) / (x p))) (piInv * (acos (y p)))
-              
+        polar p = UV (piInv * atan (z p / x p)) (piInv * acos (y p))

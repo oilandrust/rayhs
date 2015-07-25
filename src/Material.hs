@@ -18,7 +18,7 @@ data ColorMap = Flat Color
 colorAt :: ColorMap -> UV -> Color
 colorAt (Flat color) _ = color
 colorAt (CheckerBoard c0 c1 scale) (UV u v) =
-  if (((mod' u scale) - (0.5*scale)) * ((mod' v scale) - (0.5*scale)) < 0)
+  if (mod' u scale - (0.5*scale)) * (mod' v scale - (0.5*scale)) < 0
   then c0
   else c1
 
@@ -35,8 +35,8 @@ r0 :: Double -> Double -> Double
 r0 n1 n2 = ((n1 - n2) / (n1 + n2)) ^ (2 :: Int)
 
 fresnel :: Double -> Double -> Double
-fresnel ior cosθ = r + (1 - r) * (1 - cosθ) ^ (5 :: Int)
+fresnel ior cos0 = r + (1 - r) * (1 - cos0) ^ (5 :: Int)
   where r = r0 1.0 ior
-        
+
 diffuse :: Color -> Color -> Vec -> Vec -> Color
-diffuse cd lc l n = mul ((max (dot l n) 0) * piInv) (cd * lc)
+diffuse cd lc l n = mul (max (dot l n) 0 * piInv) (cd * lc)
