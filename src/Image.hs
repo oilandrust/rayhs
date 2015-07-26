@@ -25,9 +25,6 @@ mapPixels f (Image w h px) = Image w h (zipWith f px indices)
 
 instance NFData Color
 
-
-
-
 generatePixels :: Int -> Int -> ((Double, Double) -> Color) -> Image
 generatePixels w h f = Image w h (map (\i -> f (fromIntegral (i`mod`w),
                                                 fromIntegral (i`div`w))) [0..(w*h)]

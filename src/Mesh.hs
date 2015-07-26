@@ -1,6 +1,6 @@
 module Mesh (Mesh(..)
             , Vertex(..)
-            , Triangle
+            , Triangle(..)
             , triangleIntersection
             , triangles
             , readOBJ
@@ -43,7 +43,7 @@ rayInterMesh :: Ray -> Mesh -> Maybe Hit
 rayInterMesh ray mesh = closestHit $ mapTriangles (triangleIntersection ray) mesh
 
 -- Convenience type to store 3 vertices
-data Triangle = Triangle !Vertex !Vertex !Vertex
+data Triangle = Triangle !Vertex !Vertex !Vertex deriving Show
 
 triLookup :: Vector Vertex -> (Int, Int, Int) -> Triangle
 triLookup verts (i, j, k) = Triangle (verts ! i) (verts ! j) (verts ! k)
@@ -51,6 +51,7 @@ triLookup verts (i, j, k) = Triangle (verts ! i) (verts ! j) (verts ! k)
 barycentricInterp :: (Num a, Ext a) =>
                      Double -> a -> Double -> a -> Double -> a
                      -> a
+{-# INLINE barycentricInterp #-}
 barycentricInterp a p b q c r = mul a p + mul b q + mul c r
 
 triangleIntersection :: Ray -> Triangle -> Maybe Hit

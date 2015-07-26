@@ -44,6 +44,7 @@ class Inter a  where
   intersection :: Ray -> a -> Maybe Hit
 
 data Geometry = forall a. Inter a => Geometry a
+
 geom :: Inter a => a -> Geometry
 geom = Geometry
 
@@ -59,7 +60,7 @@ closestHit hits = case catMaybes hits of
 
 {- Basic shapes -}
 data Shape = Plane { point :: !Vec, normal :: !Vec, tangent :: !Vec}
-           | Sphere { center :: !Vec, radius :: !Double }
+           | Sphere { center :: !Vec, radius :: !Double } deriving Show
 
 instance Inter Shape where
   intersection = rayShapeIntersection

@@ -240,7 +240,7 @@ maxDepth = 5
 
 main :: IO ()
 main = do
-  scene <- buildScene cBox
+  scene <- buildScene outScene
   let output = rayTrace scene 1024 1024
   writePPM "out.ppm" output
   putStrLn "done!"

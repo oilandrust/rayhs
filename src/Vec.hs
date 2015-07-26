@@ -4,6 +4,7 @@ module Vec (Vec (..)
            , Normal
            , Direction
            , UV (..)
+           , (@@)
            , o
            , xAxis
            , yAxis
@@ -50,6 +51,13 @@ instance Num UV where
   (UV x1 y1) - (UV x2 y2) = UV (x1-x2) (y1-y2)
   {-# INLINE negate #-}
   negate (UV x y) = UV (-x) (-y)
+
+{- Index lookup -}
+(@@) :: Vec -> Int -> Double
+v @@ 0 = x v
+v @@ 1 = y v
+v @@ 2 = z v
+v @@ _ = 0
 
 {- Exterior product -}
 class Ext a where
