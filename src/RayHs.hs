@@ -14,36 +14,26 @@ import qualified Data.Vector as V
 import Text.Printf
 import System.Environment (getArgs)
 import System.CPUTime
+import System.Random
 
 import Math
 import Color
 import Image
 import Vec hiding (o)
 import Material
+import Light
+import Scene
 import Geometry hiding (intersection)
 import Mesh
 import Projection
 import KDTree
+import RandomSamples
+import Descriptors
 
 import qualified Vec (o)
 import qualified Geometry as Geom (intersection)
 
-{- Light -}
-data Light = Directional { dir :: !Vec, col :: !Color }
-           | Point { pos :: !Vec, col :: !Color, r :: !Double } deriving Show
-
-lightAt :: Light -> Vec -> (Vec, Color)
-{-# INLINE lightAt #-}
-lightAt (Directional d c) _ = (d, c)
-lightAt (Point p0 c r) p = (Vec.mul (1/d) (p0 - p), mul falloff c)
-  where falloff = 1.0 / (1.0 + d/r)^(2::Int)
-        d = dist p0 p
-
 {- Raytracing -}
-data Object = Object Geometry Material
-
-data Scene = Scene { shapes :: [Object], lights :: [Light] }
-
 data MatHit = MatHit { position :: !Vec
                      , normal :: !Vec
                      , uv :: !UV
@@ -51,14 +41,12 @@ data MatHit = MatHit { position :: !Vec
                      , material :: !Material } deriving Show
 
 intersection :: Ray -> Object -> Maybe MatHit
-{-# INLINE intersection #-}
 intersection ray (Object shape material) = do
   hit <- Geom.intersection ray shape
   case hit of
     (Hit p n uv t) -> return (MatHit p n uv t material)
 
 intersections :: [Object] -> Ray -> [MatHit]
-{-# INLINE intersections #-}
 intersections scene ray = mapMaybe (intersection ray) scene
 
 closestIntersection :: [Object] -> Ray -> Maybe MatHit
@@ -69,7 +57,6 @@ closestIntersection scene r = case hits of
 
 {- trace ray towards light to see if occluded -}
 shadowIntersection :: [Object] -> Light -> Ray -> Maybe MatHit
-{-# INLINE shadowIntersection #-}
 shadowIntersection scene light ray = case hits of
   [] -> Nothing
   _  -> Just $ minimumBy (compare `on` time) hits
@@ -82,7 +69,6 @@ shadowIntersection scene light ray = case hits of
                            sqrDist (position hit) (origin ray)
 
 accumDiffuse :: [Object] -> [Light] -> Vec -> Vec -> Color -> Color
-{-# INLINE accumDiffuse #-}
 accumDiffuse sc lts p n color =
   foldl (\c l -> c + diffFromLight l) black lts
   where diffFromLight light =
@@ -93,17 +79,15 @@ accumDiffuse sc lts p n color =
           where (ld, lc) = lightAt light p
 
 specular :: Scene -> Int -> Vec -> Vec -> Vec -> Color
-{-# INLINE specular #-}
 specular scene depth v p n
   | depth < maxDepth = mul (dot (reflect v n) n)
-                       (traceRay scene
-                       (rayEps p (reflect v n)) (depth+1))
+                       (traceRay scene (depth+1)
+                       (rayEps p (reflect v n)))
   | otherwise = black
 
 {- Irradiance comutation at a point with view direction, normal and material -}
 irradiance :: Int -> Scene -> Material ->
               Direction -> Position -> Normal -> UV -> Color
-{-# INLINE irradiance #-}
 {- Diffuse + Ambient -}
 irradiance _ (Scene shapes lights) (Diffuse cdMap) _ p n uv =
   mul 0.2 cd +
@@ -137,54 +121,38 @@ irradiance depth scene (Transparent ior) v p n _ =
             (MatHit outp outn _ _ _) <- closestIntersection (shapes scene) refr
             outRay <- liftM (rayEps outp)
                       (refract (direction refr) (-outn) ior 1.0)
-            return $ traceRay scene outRay (depth+1)
+            return $ traceRay scene (depth+1) outRay
 
 {- Debug material -}
 irradiance _ _ ShowNormal _ _ n _ = toRGB n
 irradiance _ _ ShowUV _ _ _ (UV u v) = RGB u v 0
 
-traceRay :: Scene -> Ray -> Int -> Color
-traceRay scene ray@(Ray _ v) depth =
+traceRay :: Scene -> Int -> Ray -> Color
+traceRay scene depth ray@(Ray _ v) =
   let inter = closestIntersection (shapes scene) ray
   in case inter of
     Just (MatHit p n uv _ mat) -> irradiance depth scene mat v p n uv
     Nothing -> black
 
-tracePixel :: Scene -> Double -> Double -> (Double, Double) -> Color
-tracePixel scene w h (i, j) = traceRay scene ray 0
-  where ray = rayFromPixel w h (Perspective 0 2 2 0.1) i j
+average :: [Color] -> Color
+average colors = mul (1.0 / (fromIntegral . length $ colors)) sumc
+  where sumc = foldl (+) black colors
+
+tracePixel :: Scene ->
+              Double -> Double -> (Double, Double) -> Color
+tracePixel scene w h (i, j) = average colors
+  where colors = map (traceRay scene 0) rays
+        rays = map
+               (\(oi, oj) -> rayFromPixel w h
+                             (Perspective 0 2 2 0.1)
+                             (i+oi) (j+oj) (0.04*oi) (0.04*oj))
+               [(0, 0)]
 
 rayTrace :: Scene -> Int -> Int -> Image
 rayTrace scene w h = generatePixels w h
                      (tracePixel scene
                       (fromIntegral w)
                       (fromIntegral h))
-
-{- Scene Descriptor -}
-data GeometryDesc = MeshDesc String Vec
-                  | SphereDesc Vec Double
-                  | PlaneDesc Vec Vec Vec
-
-type ObjectDesc = (GeometryDesc, Material)
-
-type SceneDesc = ([ObjectDesc], [Light])
-
-buildScene :: SceneDesc -> IO Scene
-buildScene (objectDescs, lights) = do
-  objects <- mapM buildObject objectDescs
-  return $ Scene objects lights
-
-buildObject :: ObjectDesc -> IO Object
-buildObject (desc, mat) = do
-  geometry <- buildGeometry desc
-  return $ Object geometry mat
-
-buildGeometry :: GeometryDesc -> IO Geometry
-buildGeometry (PlaneDesc p n t) = return (geom $ Plane p n t)
-buildGeometry (SphereDesc c r) = return (geom $ Sphere c r)
-buildGeometry (MeshDesc filename pos) = do
-  mesh <- readOBJ filename
-  return (geom $ buildKDTree (translate mesh pos))
 
 {- Test Data -}
 outScene :: SceneDesc
@@ -235,12 +203,13 @@ cBox = ([(SphereDesc (Vec 0.5 (-0.6) 1) 0.4,
         boxPos = Vec (-0.4) (-0.6) 1.5
         torusOffset = Vec 0 0.75 0
 
+
 maxDepth :: Int
-maxDepth = 5
+maxDepth = 3
 
 main :: IO ()
 main = do
-  scene <- buildScene outScene
+  scene <- buildScene cBox
   let output = rayTrace scene 1024 1024
   writePPM "out.ppm" output
   putStrLn "done!"
