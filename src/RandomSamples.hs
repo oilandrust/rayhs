@@ -1,6 +1,6 @@
 module RandomSamples (Rnd
                      , runRandom
-                     , sampleUniform
+                     , sampleUniform01
                      , sampleUniformSq) where
 
 import Control.Monad
@@ -40,23 +40,11 @@ uniform2 :: Double -> Rnd [(Double, Double)]
 uniform2 s = mapM (\_ -> (\(x, y) -> (2 * s * (x-0.5), 2 * s * (y-0.5)))
                          <$> randPair) $ repeat ()
 
-{- Get n samples uniformly distributed between minV and maxV -}
-sampleUniform :: Double -> Double -> Int -> Rnd [Double]
-sampleUniform minV maxV n = liftM (take n) (uniform minV maxV)
+{- Get n samples uniformly distributed between 0 and 1 -}
+sampleUniform01 :: Int -> Rnd [Double]
+sampleUniform01 n = sequence $ replicate n rand
 
-{- Get n samples uniformly distributed in a square centerd at the orifin
+{- Get n samples uniformly distributed in a square centerd at the origin
 of size s -}
 sampleUniformSq :: Double -> Int -> Rnd [(Double, Double)]
 sampleUniformSq halfSize n = liftM (take n) (uniform2 halfSize)
-
-{-
-ray :: Double -> Rnd [(Double, Double)]
-ray a = do
-  samp <- sampleUniformSq a 10
-  return $ samp
-
-main :: IO ()
-main = do
-  let res = runRandom (ray 3) 6
-  putStrLn $ show res
--}

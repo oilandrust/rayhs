@@ -1,0 +1,43 @@
+"scene" : {
+	"objects" : [
+		{
+			"geometry": {
+				"type": "plane",
+				"normal": {"x": 1, "y": 0, "z": 0}
+			},
+		 	"material": {
+		 		"type": "diffuse",
+		 		"cd": {
+	 				"type": "flat",
+	 				"color": { "r":1,"g":2,"b":3 }
+		 		}
+		 	}
+		}
+	]
+}
+
+// ColorMap
+{ "type": "flat", "color": { "r":1,"g":2,"b":3 } }
+{ "type": "checker", "color1": { "r":1,"g":2,"b":3 }, "color2": { "r":1,"g":2,"b":3 }, "size": 10 }
+
+// Material
+{ "type": "diffuse", "cd": { "type": "flat", "color": { "r":1,"g":2,"b":3 } } }
+{ "type": "mirror", "ior": 1 }
+{ "type": "plastic", "cd": { "type": "flat", "color": { "r":1,"g":2,"b":3 } }, "ior": 1 }
+{ "type": "transparent", "ior": 1 }
+{ "type": "emmit", "ce": { "r":1,"g":2,"b":3 } }
+
+// GeometryDesc
+{ "type": "plane", "normal": {"x": 1, "y": 0, "z": 0},  "point": {"x": 1, "y": 0, "z": 0}, "tangent": {"x": 1, "y": 0, "z": 0}}
+{ "type": "sphere", "center": {"x": 1, "y": 0, "z": 0},  "radius": 10 }
+{ "type": "mesh", "fileName": "test", "translation": {"x": 1, "y": 0, "z": 0}}
+
+// ObjectDesc
+{ "geometry": { "type": "mesh", "fileName": "test", "translation": {"x": 1, "y": 0, "z": 0}}, "material": { "type": "mirror", "ior": 1 } }
+
+// Light
+{ "type": "directional", "direction": {"x": 1, "y": 0, "z": 0}, "color": { "r":1,"g":2,"b":3 } }
+{ "type": "point", "position": {"x": 1, "y": 0, "z": 0}, "color": { "r":1,"g":2,"b":3 }, "radius": 1 }
+
+// SceneDesc
+{ "objects": [{ "geometry": { "type": "mesh", "fileName": "test", "translation": {"x": 1, "y": 0, "z": 0}}, "material": { "type": "mirror", "ior": 1 } }], "lights": [{ "type": "point", "position": {"x": 1, "y": 0, "z": 0}, "color": { "r":1,"g":2,"b":3 }, "radius": 1 }] }

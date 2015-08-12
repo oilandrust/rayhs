@@ -5,8 +5,9 @@ import Color
 import Vec
 
 {- Light -}
-data Light = Directional { dir :: !Vec, col :: !Color }
-           | Point { pos :: !Vec, col :: !Color, r :: !Double } deriving Show
+data Light = Directional { direction :: !Vec, color :: !Color }
+           | Point { position :: !Vec, color :: !Color, radius :: !Double }
+           deriving Show
 
 lightAt :: Light -> Vec -> (Vec, Color)
 {-# INLINE lightAt #-}

@@ -1,6 +1,6 @@
 module Descriptors (GeometryDesc(..)
-                   , ObjectDesc
-                   , SceneDesc
+                   , ObjectDesc(..)
+                   , SceneDesc(..)
                    , buildScene) where
 
 import Vec
@@ -12,21 +12,27 @@ import Scene
 import KDTree
 
 {- Scene Descriptor -}
-data GeometryDesc = MeshDesc String Vec
-                  | SphereDesc Vec Double
-                  | PlaneDesc Vec Vec Vec
+data GeometryDesc = MeshDesc { fileName :: String
+                             , translation :: Vec }
+                  | SphereDesc { center :: Vec
+                               , radius :: Double }
+                  | PlaneDesc { normal :: Vec
+                              , point :: Vec
+                              , tangent :: Vec } deriving Show
 
-type ObjectDesc = (GeometryDesc, Material)
+data ObjectDesc = ObjectDesc { geometry :: GeometryDesc
+                             , material :: Material } deriving Show
 
-type SceneDesc = ([ObjectDesc], [Light])
+data SceneDesc = SceneDesc { objects :: [ObjectDesc]
+                           , lights :: [Light] } deriving Show
 
 buildScene :: SceneDesc -> IO Scene
-buildScene (objectDescs, lights) = do
+buildScene (SceneDesc objectDescs lights) = do
   objects <- mapM buildObject objectDescs
   return $ Scene objects lights
 
 buildObject :: ObjectDesc -> IO Object
-buildObject (desc, mat) = do
+buildObject (ObjectDesc desc mat) = do
   geometry <- buildGeometry desc
   return $ Object geometry mat
 

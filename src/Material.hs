@@ -11,8 +11,10 @@ import Color
 import Math
 import Vec
 
-data ColorMap = Flat !Color
-              | CheckerBoard !Color !Color !Double
+data ColorMap = Flat { color :: !Color }
+              | CheckerBoard { color1 :: !Color
+                             , color2 :: !Color
+                             , size :: !Double }
               deriving Show
 
 colorAt :: ColorMap -> UV -> Color

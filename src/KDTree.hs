@@ -74,12 +74,12 @@ baryCenter (Triangle (Vertex a _ _)
                      (Vertex c _ _)) = mul (1 / 3) (a + b + c)
 
 maxDepth :: Int
-maxDepth = 10
+maxDepth = 100
 
 buildNode :: [Triangle] -> Int -> Int -> KDTree
 buildNode tris depth axis
   | null tris = Empty
-  | length tris < 5 || depth >= maxDepth = Leaf box tris
+  | length tris < 20 || depth >= maxDepth = Leaf box tris
   | otherwise = Node box left right
   where box = buildBoundingBox tris
         left = buildNode [t | t <- tris, (baryCenter t) @@ axis < split]

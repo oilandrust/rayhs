@@ -29,7 +29,7 @@ rayAt :: Ray -> Double -> Vec
 rayAt (Ray o d) t = o + Vec.mul t d
 
 eps :: Double
-eps = 0.0001
+eps = 0.000001
 
 rayEps :: Vec -> Vec -> Ray
 {-# INLINE rayEps #-}

@@ -1,5 +1,6 @@
 module Image (Image(Image)
              , generatePixels
+             , generatePixelsRnd
              , mapPixels
              , gradient
              , solidImage
@@ -13,6 +14,7 @@ import Control.Parallel.Strategies
 
 import Math
 import Color
+import RandomSamples
 
 {- Image -}
 data Image = Image { width  :: Int
@@ -25,18 +27,18 @@ mapPixels f (Image w h px) = Image w h (zipWith f px indices)
 
 instance NFData Color
 
+pixelCoord :: Int -> Int -> Int -> (Double, Double)
+pixelCoord w h i = (fromIntegral (i `mod` w), fromIntegral (i `div` w))
+
 generatePixels :: Int -> Int -> ((Double, Double) -> Color) -> Image
-generatePixels w h f = Image w h (map (\i -> f (fromIntegral (i`mod`w),
-                                                fromIntegral (i`div`w))) [0..(w*h)]
+generatePixels w h f = Image w h (map (f . pixelCoord w h) [0..(w*h)]
                                   `using` parListChunk 10 rdeepseq )
 
-{-
-generatePixels w h f = Image w h (parMap rdeepseq
-                                  (\i -> f (fromIntegral (i `mod` w),
-                                            fromIntegral (i `div` w)))
-                                  [0..(w*h)]
-                                 )
--}
+generatePixelsRnd :: Int -> Int -> ((Double, Double) -> Rnd Color) -> Rnd Image
+generatePixelsRnd w h f = do
+  pixels <- mapM (f . pixelCoord w h) [0..(w*h)]
+  return $ Image w h pixels
+
 gradient :: Int -> Int -> Image
 gradient w h = Image w h (map
                          (\i -> gray (fdiv i (w * h - 1)))
