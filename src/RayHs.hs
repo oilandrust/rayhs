@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 {-# LANGUAGE OverloadedStrings #-}
-
 module Main where
 
 import Control.Monad
@@ -10,6 +9,7 @@ import Data.List
 import Data.Function
 import Data.Vector (Vector, cons, (!), (!?), (//))
 import qualified Data.Vector as V
+import qualified Data.ByteString as B
 
 import Text.Printf
 import System.Environment (getArgs)
@@ -29,6 +29,7 @@ import Projection
 import KDTree
 import RandomSamples
 import Descriptors
+import JSON
 
 import qualified Vec (o)
 import qualified Geometry as Geom (intersection)
@@ -264,9 +265,10 @@ fresn = SceneDesc
 main :: IO ()
 main = do
   scene <- buildScene outScene
+  print $ encode outScene
   let job = Rendering scene (Perspective 0 2 2 0.1) 512 512 3
-  let simpleRay = rayTrace job
-  writePPM "out.ppm" simpleRay
---  let multipleRay = runRandom (distributedRayTrace job) 24
---  writePPM "dist.ppm" multipleRay
+  --let simpleRay = rayTrace job
+  --writePPM "out.ppm" simpleRay
+  let multipleRay = runRandom (distributedRayTrace job) 24
+  writePPM "dist.ppm" multipleRay
   putStrLn "done!"

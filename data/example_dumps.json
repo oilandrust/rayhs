@@ -1,20 +1,25 @@
+
 "scene" : {
-	"objects" : [
-		{
-			"geometry": {
-				"type": "plane",
-				"normal": {"x": 1, "y": 0, "z": 0}
-			},
-		 	"material": {
-		 		"type": "diffuse",
-		 		"cd": {
-	 				"type": "flat",
-	 				"color": { "r":1,"g":2,"b":3 }
-		 		}
-		 	}
+	"objects": [{
+		"geometry": {
+			"type": "mesh",
+			"fileName": "test",
+			"translation": {"x": 1, "y": 0, "z": 0}
+		},
+		"material": {
+			"type": "mirror",
+			"ior": 1
 		}
-	]
+	}],
+	"lights": [{
+		"type": "point",
+		"position": {"x": 1, "y": 0, "z": 0},
+		"color": { "r":1,"g":2,"b":3 },
+		"radius": 1
+	}]
 }
+
+// One liner tests
 
 // ColorMap
 { "type": "flat", "color": { "r":1,"g":2,"b":3 } }

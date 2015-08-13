@@ -1,4 +1,4 @@
-
+{-# LANGUAGE OverloadedStrings #-}
 module JSON ( encode
             , decode
             , FromJSON(..)
@@ -94,3 +94,59 @@ instance FromJSON SceneDesc where
                          v .: "objects" <*>
                          v .: "lights"
   parseJSON _ = mempty
+
+
+{- encoding -}
+
+instance ToJSON Vec where
+  toJSON (Vec x y z) = object ["x" .= x, "y" .= y, "z" .= z]
+
+instance ToJSON Color where
+  toJSON (RGB x y z) = object ["r" .= x, "g" .= y, "b" .= z]
+
+instance ToJSON ColorMap where
+  toJSON (Flat c) = object ["type" .= ("flat" :: Text), "color" .= c]
+  toJSON (CheckerBoard c1 c2 s) = object ["type" .= ("checker" :: Text),
+                                          "color1" .= c1,
+                                          "color2" .= c2,
+                                          "size" .= s]
+
+instance ToJSON Material where
+  toJSON (Diffuse cd) = object ["type" .= ("diffuse" :: Text), "cd" .= cd]
+  toJSON (Emmit cd) = object ["type" .= ("emmit" :: Text), "ce" .= cd]
+  toJSON (Plastic cd ior) = object ["type" .= ("plastic" :: Text),
+                                    "cd" .= cd,
+                                    "ior" .= ior]
+  toJSON (Mirror ior) = object ["type" .= ("mirror" :: Text),
+                                "ior" .= ior]
+  toJSON (Transparent ior) = object ["type" .= ("transparent" :: Text),
+                                     "ior" .= ior]
+
+instance ToJSON Light where
+  toJSON (Directional d c) = object ["type" .= ("directional" :: Text),
+                                     "direction" .= d,
+                                     "color" .= c]
+  toJSON (Point pos color rad) = object ["type" .= ("point" :: Text),
+                                         "position" .= pos,
+                                         "color" .= color,
+                                         "radius" .= rad]
+
+instance ToJSON GeometryDesc where
+  toJSON (SphereDesc c r) = object ["type" .= ("sphere" :: Text),
+                                    "center" .= c,
+                                    "radius" .= r]
+  toJSON (PlaneDesc n p t) = object ["type" .= ("plane" :: Text),
+                                    "normal" .= n,
+                                    "point" .= p,
+                                    "tangent" .= t]
+  toJSON (MeshDesc fn t) = object ["type" .= ("mesh" :: Text),
+                                   "fileName" .= fn,
+                                   "translation" .= t]
+
+instance ToJSON ObjectDesc where
+  toJSON (ObjectDesc g m) = object ["geometry" .= g,
+                                "material" .= m]
+
+instance ToJSON SceneDesc where
+  toJSON (SceneDesc objs lights) = object ["objects" .= objs,
+                                           "lights" .= lights]
