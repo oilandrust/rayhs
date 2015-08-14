@@ -10,6 +10,7 @@ import Data.Function
 import Data.Vector (Vector, cons, (!), (!?), (//))
 import qualified Data.Vector as V
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as BS
 
 import Text.Printf
 import System.Environment (getArgs)
@@ -262,13 +263,21 @@ dragon = SceneDesc
   where lightPos2 = Vec (-0.5) (-0.2) 0.12
         lightPos = Vec 0.4 (-0.1) (-0.1)
 
+parseFile :: FromJSON a => FilePath -> IO (Maybe a)
+parseFile path = do
+  content <- BS.readFile path
+  return $ decode content
+
 main :: IO ()
 main = do
-  scene <- buildScene outScene
-  print $ encode outScene
-  let job = Rendering scene (Perspective 0 2 2 0.1) 512 512 3
-  --let simpleRay = rayTrace job
-  --writePPM "out.ppm" simpleRay
+  sceneDesc <- parseFile "data/dragon.json"
+  case sceneDesc of
+    Nothing -> putStrLn "Failed to read scene"
+    Just sd -> do
+      scene <- buildScene sd
+      let job = Rendering scene (Perspective 0 2 2 0.1) 16 16 1
+      let simpleRay = rayTrace job
+      writePPM "out.ppm" simpleRay
   --let multipleRay = runRandom (distributedRayTrace job) 24
   --writePPM "dist.ppm" multipleRay
-  putStrLn "done!"
+      putStrLn "done!"

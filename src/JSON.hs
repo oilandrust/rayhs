@@ -107,8 +107,8 @@ instance ToJSON Color where
 instance ToJSON ColorMap where
   toJSON (Flat c) = object ["type" .= ("flat" :: Text), "color" .= c]
   toJSON (CheckerBoard c1 c2 s) = object ["type" .= ("checker" :: Text),
-                                          "color1" .= c1,
                                           "color2" .= c2,
+                                          "color1" .= c1,
                                           "size" .= s]
 
 instance ToJSON Material where
@@ -144,8 +144,8 @@ instance ToJSON GeometryDesc where
                                    "translation" .= t]
 
 instance ToJSON ObjectDesc where
-  toJSON (ObjectDesc g m) = object ["geometry" .= g,
-                                "material" .= m]
+  toJSON (ObjectDesc g m) = object ["material" .= m,
+                                    "geometry" .= g]
 
 instance ToJSON SceneDesc where
   toJSON (SceneDesc objs lights) = object ["objects" .= objs,
