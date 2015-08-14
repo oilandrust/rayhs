@@ -209,29 +209,29 @@ outScene = SceneDesc
   where boxPos = Vec (-2) (-0.6) 4
         torusOffset = Vec 0 0.75 0
 
-{-
+
 cBox :: SceneDesc
 cBox = SceneDesc
-       [(SphereDesc (Vec 0.5 (-0.6) 1) 0.4,
-         Plastic (Flat red) 1.9),
-        (SphereDesc (Vec 0.7 0.7 1.7) 0.22, Mirror 0.1),
-        (SphereDesc (Vec (-0.4) (-0.8) 0.4) 0.2, Diffuse (Flat green)),
-        (SphereDesc (Vec 0.1 (-0.3) 0.3) 0.2, Transparent 1.5),
-        (SphereDesc lightPos 0.1, Emmit white),
-        (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis,
-         Diffuse $ Flat (gray 2)),
-        (PlaneDesc (Vec 1 0 0) (-xAxis) yAxis,
-         Diffuse $ Flat green),
-        (PlaneDesc (Vec (-1) 0 0) xAxis yAxis,
-         Diffuse $ Flat red),
-        (PlaneDesc (Vec 0 1 0) (-yAxis) zAxis,
-         Diffuse $ Flat (gray 2)),
-        (PlaneDesc (Vec 0 (-1) 0) yAxis zAxis,
-         Plastic (CheckerBoard black (gray 2) 0.25) 2),
-        (MeshDesc "data/cube.obj" boxPos,
-         Plastic (Flat (gray 1.5)) 1.9),
-        (MeshDesc "data/torus.obj" (boxPos+torusOffset),
-         Plastic (Flat yellow) 1.7)]
+       [ObjectDesc (SphereDesc (Vec 0.5 (-0.6) 1) 0.4) (Plastic (Flat red) 1.9),
+        ObjectDesc (SphereDesc (Vec 0.7 0.7 1.7) 0.22) (Mirror 0.1),
+        ObjectDesc (SphereDesc (Vec (-0.4) (-0.8) 0.4) 0.2)
+        (Diffuse $ Flat green),
+        ObjectDesc (SphereDesc (Vec 0.1 (-0.3) 0.3) 0.2) (Transparent 1.5),
+        ObjectDesc (SphereDesc lightPos 0.1) (Emmit white),
+        ObjectDesc (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis)
+        (Diffuse $ Flat (gray 2)),
+        ObjectDesc (PlaneDesc (Vec 1 0 0) (-xAxis) yAxis)
+        (Diffuse $ Flat green),
+        ObjectDesc (PlaneDesc (Vec (-1) 0 0) xAxis yAxis)
+        (Diffuse $ Flat red),
+        ObjectDesc (PlaneDesc (Vec 0 1 0) (-yAxis) zAxis)
+        (Diffuse $ Flat (gray 2)),
+        ObjectDesc (PlaneDesc (Vec 0 (-1) 0) yAxis zAxis)
+        (Plastic (CheckerBoard black (gray 2) 0.25) 2),
+        ObjectDesc (MeshDesc "data/cube.obj" boxPos)
+        (Plastic (Flat (gray 1.5)) 1.9),
+        ObjectDesc (MeshDesc "data/torus.obj" (boxPos+torusOffset))
+        (Plastic (Flat yellow) 1.7)]
        -- lights
        [Point (Vec 0 0.9 0.75) (gray 200) 0.1,
         Point lightPos (gray 50) 0.1]
@@ -239,29 +239,29 @@ cBox = SceneDesc
         boxPos = Vec (-0.4) (-0.6) 1.5
         torusOffset = Vec 0 0.75 0
 
-fresn :: SceneDesc
-fresn = SceneDesc
-        [(MeshDesc "data/dragon.obj" (Vec 0 (-1) (0.5)),
-          Plastic (Flat red) 1.9),
-         (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis,
-          Diffuse $ Flat (gray 2)),
-         (PlaneDesc (Vec 1 0 0) (-xAxis) yAxis,
-          Diffuse $ Flat green),
-         (PlaneDesc (Vec (-1) 0 0) xAxis yAxis,
-          Diffuse $ Flat red),
-         (PlaneDesc (Vec 0 1 0) (-yAxis) zAxis,
-          Diffuse $ Flat (gray 1.5)),
-         (SphereDesc lightPos 0.1, Emmit white),
-         (SphereDesc lightPos2 0.07, Emmit white),
-         (PlaneDesc (Vec 0 (-1) 0) yAxis zAxis,
-          Plastic (CheckerBoard black (gray 2) 0.5) 2)]
+dragon :: SceneDesc
+dragon = SceneDesc
+         [ObjectDesc (MeshDesc "data/dragon.obj" (Vec 0 (-1) (0.5)))
+          (Plastic (Flat red) 1.9),
+          ObjectDesc (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis)
+          (Diffuse $ Flat (gray 2)),
+          ObjectDesc (PlaneDesc (Vec 1 0 0) (-xAxis) yAxis)
+          (Diffuse $ Flat green),
+          ObjectDesc (PlaneDesc (Vec (-1) 0 0) xAxis yAxis)
+          (Diffuse $ Flat red),
+          ObjectDesc (PlaneDesc (Vec 0 1 0) (-yAxis) zAxis)
+          (Diffuse $ Flat (gray 1.5)),
+          ObjectDesc (SphereDesc lightPos 0.1) (Emmit white),
+          ObjectDesc (SphereDesc lightPos2 0.07) (Emmit white),
+          ObjectDesc (PlaneDesc (Vec 0 (-1) 0) yAxis zAxis)
+          (Plastic (CheckerBoard black (gray 2) 0.5) 2)]
          -- lights
-        [Point (Vec 0 0.9 0.75) (gray 150) 0.1,
-         Point lightPos2 (gray 50) 0.1,
-         Point lightPos (gray 50) 0.1]
+         [Point (Vec 0 0.9 0.75) (gray 150) 0.1,
+          Point lightPos2 (gray 50) 0.1,
+          Point lightPos (gray 50) 0.1]
   where lightPos2 = Vec (-0.5) (-0.2) 0.12
         lightPos = Vec 0.4 (-0.1) (-0.1)
--}
+
 main :: IO ()
 main = do
   scene <- buildScene outScene
@@ -269,6 +269,6 @@ main = do
   let job = Rendering scene (Perspective 0 2 2 0.1) 512 512 3
   --let simpleRay = rayTrace job
   --writePPM "out.ppm" simpleRay
-  let multipleRay = runRandom (distributedRayTrace job) 24
-  writePPM "dist.ppm" multipleRay
+  --let multipleRay = runRandom (distributedRayTrace job) 24
+  --writePPM "dist.ppm" multipleRay
   putStrLn "done!"
