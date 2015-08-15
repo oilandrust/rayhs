@@ -14,6 +14,7 @@ import qualified Data.ByteString.Lazy as BS
 
 import Text.Printf
 import System.Environment (getArgs)
+import System.Console.GetOpt
 import System.CPUTime
 import System.Random
 
@@ -188,96 +189,49 @@ distributedRayTrace (Rendering scene projection w h d) =
                          (fromIntegral h)
                          projection)
 
-{- Test Data -}
-outScene :: SceneDesc
-outScene = SceneDesc
-           [ObjectDesc (SphereDesc (Vec 0.5 (-0.5) 3.2) 0.5)
-            (Plastic (CheckerBoard red yellow 0.2) 1.9),
-            ObjectDesc (SphereDesc (Vec (-0.7) (-0.6) 3.3) 0.4) (Mirror 0.1),
-            ObjectDesc (SphereDesc (Vec (-0.1) (-0.8) 2) 0.2)
-            (Diffuse $ Flat green),
-            ObjectDesc (SphereDesc (Vec 0 2 3) 0.1) (Emmit $ gray 0.8),
-            ObjectDesc (PlaneDesc (Vec 0 (-1) 0) yAxis xAxis)
-            (Plastic (CheckerBoard black white 2) 1.7),
-            ObjectDesc (MeshDesc "data/cube.obj" boxPos)
-            (Plastic (Flat $ gray 1.5) 1.9),
-            ObjectDesc (MeshDesc "data/torus.obj" (boxPos+torusOffset))
-            (Plastic (Flat yellow) 1.7),
-            ObjectDesc (MeshDesc "data/uvtorus.obj" (Vec (-0.4) (-1) 0.5))
-             (Diffuse (CheckerBoard blue white 2))]
-           [Directional (normalize (Vec 1 0.7 (-1))) (gray 1),
-            Point (Vec 0 1.5 3) (gray 1000) 0.1]
-  where boxPos = Vec (-2) (-0.6) 4
-        torusOffset = Vec 0 0.75 0
-
-
-cBox :: SceneDesc
-cBox = SceneDesc
-       [ObjectDesc (SphereDesc (Vec 0.5 (-0.6) 1) 0.4) (Plastic (Flat red) 1.9),
-        ObjectDesc (SphereDesc (Vec 0.7 0.7 1.7) 0.22) (Mirror 0.1),
-        ObjectDesc (SphereDesc (Vec (-0.4) (-0.8) 0.4) 0.2)
-        (Diffuse $ Flat green),
-        ObjectDesc (SphereDesc (Vec 0.1 (-0.3) 0.3) 0.2) (Transparent 1.5),
-        ObjectDesc (SphereDesc lightPos 0.1) (Emmit white),
-        ObjectDesc (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis)
-        (Diffuse $ Flat (gray 2)),
-        ObjectDesc (PlaneDesc (Vec 1 0 0) (-xAxis) yAxis)
-        (Diffuse $ Flat green),
-        ObjectDesc (PlaneDesc (Vec (-1) 0 0) xAxis yAxis)
-        (Diffuse $ Flat red),
-        ObjectDesc (PlaneDesc (Vec 0 1 0) (-yAxis) zAxis)
-        (Diffuse $ Flat (gray 2)),
-        ObjectDesc (PlaneDesc (Vec 0 (-1) 0) yAxis zAxis)
-        (Plastic (CheckerBoard black (gray 2) 0.25) 2),
-        ObjectDesc (MeshDesc "data/cube.obj" boxPos)
-        (Plastic (Flat (gray 1.5)) 1.9),
-        ObjectDesc (MeshDesc "data/torus.obj" (boxPos+torusOffset))
-        (Plastic (Flat yellow) 1.7)]
-       -- lights
-       [Point (Vec 0 0.9 0.75) (gray 200) 0.1,
-        Point lightPos (gray 50) 0.1]
-  where lightPos = Vec 0.6 (-0.4) 0.2
-        boxPos = Vec (-0.4) (-0.6) 1.5
-        torusOffset = Vec 0 0.75 0
-
-dragon :: SceneDesc
-dragon = SceneDesc
-         [ObjectDesc (MeshDesc "data/dragon.obj" (Vec 0 (-1) (0.5)))
-          (Plastic (Flat red) 1.9),
-          ObjectDesc (PlaneDesc (Vec 0 0 2) (-zAxis) xAxis)
-          (Diffuse $ Flat (gray 2)),
-          ObjectDesc (PlaneDesc (Vec 1 0 0) (-xAxis) yAxis)
-          (Diffuse $ Flat green),
-          ObjectDesc (PlaneDesc (Vec (-1) 0 0) xAxis yAxis)
-          (Diffuse $ Flat red),
-          ObjectDesc (PlaneDesc (Vec 0 1 0) (-yAxis) zAxis)
-          (Diffuse $ Flat (gray 1.5)),
-          ObjectDesc (SphereDesc lightPos 0.1) (Emmit white),
-          ObjectDesc (SphereDesc lightPos2 0.07) (Emmit white),
-          ObjectDesc (PlaneDesc (Vec 0 (-1) 0) yAxis zAxis)
-          (Plastic (CheckerBoard black (gray 2) 0.5) 2)]
-         -- lights
-         [Point (Vec 0 0.9 0.75) (gray 150) 0.1,
-          Point lightPos2 (gray 50) 0.1,
-          Point lightPos (gray 50) 0.1]
-  where lightPos2 = Vec (-0.5) (-0.2) 0.12
-        lightPos = Vec 0.4 (-0.1) (-0.1)
-
 parseFile :: FromJSON a => FilePath -> IO (Maybe a)
 parseFile path = do
   content <- BS.readFile path
   return $ decode content
 
+
+{- Command line options -}
+data Flag = Output String deriving Show
+
+options :: [OptDescr Flag]
+options = [Option ['o'] ["output"] (OptArg makeOutput "FILE")
+           "Specify the ouput filename." ]
+
+header = "Usage: main [OPTION...]"
+
+makeOutput :: Maybe String -> Flag
+makeOutput = Output . fromMaybe "out.ppm"
+
 main :: IO ()
 main = do
-  sceneDesc <- parseFile "data/dragon.json"
-  case sceneDesc of
-    Nothing -> putStrLn "Failed to read scene"
-    Just sd -> do
-      scene <- buildScene sd
-      let job = Rendering scene (Perspective 0 2 2 0.1) 16 16 1
-      let simpleRay = rayTrace job
-      writePPM "out.ppm" simpleRay
-  --let multipleRay = runRandom (distributedRayTrace job) 24
+  args <- getArgs
+  case getOpt RequireOrder options args of
+    (flags, (fn:_), []) -> do
+      putStrLn $ show flags
+      let outFile = case flags of
+            [] -> "out.ppm"
+            (Output fn:_) -> fn
+      putStrLn $ "Loading scene from " ++ fn ++ "..."
+      sceneDesc <- parseFile $ fn
+      case sceneDesc of
+        Nothing -> error "Failed to read scene"
+        Just sd -> do
+          putStrLn $ "Rendering..."
+          scene <- buildScene sd
+          let job = Rendering scene (Perspective 0 2 2 0.1) 512 512 3
+          let simpleRay = rayTrace job
+          writePPM outFile simpleRay
+          putStrLn $ "Done! Output written to " ++ outFile
+    (_, [], []) -> error $ "No input."
+    (_, _, msgs) -> error $ concat msgs ++ usageInfo header options
+
+
+
+
+--let multipleRay = runRandom (distributedRayTrace job) 24
   --writePPM "dist.ppm" multipleRay
-      putStrLn "done!"
