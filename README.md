@@ -6,6 +6,8 @@ The current implementation is a simple raytracer with support for basic shapes a
 
 More details and screenshots can be found on the project page: http://www.orouiller.net/projects/ray-hs
 
+## Building
+
 Building the project requires a Haskell compiler such as GHC.
 There are a few dependencies that can be installed via Cabal.
 
@@ -16,5 +18,12 @@ The project should build with cabal build but I provided a script build.sh with 
 There is an aditional script test.sh that builds the program, runs it and opens the output image.
 Currently only ppm file format is suported for output, these files can be opened by The Gimp for example.
 
-Currently the scenes to be rendered are hardcoded in the source, at the end of RayHs.hs.
-You can edit the resolution of the output image at the end of RayHs.hs.
+## Usage
+
+The executable takes a filename as input. The parameter shoud point to a JSON file describing a rendering to perform.
+Example os scenes can be found in the data folder.
+The path to the ouput ppm image can be specified as an option.
+
+ex:
+
+./rayhs -ocornell.ppm data/cornellBox.json

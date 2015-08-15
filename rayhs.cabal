@@ -26,6 +26,10 @@ executable rayhs
     parallel -any,
     vector -any,
     deepseq-generics -any,
-    split -any
+    split -any,
+    text -any,
+    aeson -any,
+    mtl -any,
+    random -any
   -- hs-source-dirs:
   default-language:    Haskell2010
