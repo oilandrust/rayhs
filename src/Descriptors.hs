@@ -1,17 +1,25 @@
 module Descriptors (GeometryDesc(..)
                    , ObjectDesc(..)
                    , SceneDesc(..)
+                   , RenderDesc(..)
                    , buildScene) where
 
 import Vec
 import Light
 import Material
 import Geometry
+import Projection
 import Mesh
 import Scene
 import KDTree
 
 {- Scene Descriptor -}
+data RenderDesc = RenderDesc { scene :: SceneDesc
+                             , camera :: Camera
+                             , width :: Int
+                             , height :: Int
+                             , maxDepth :: Int }
+
 data GeometryDesc = MeshDesc { fileName :: String
                              , translation :: Vec }
                   | SphereDesc { center :: Vec

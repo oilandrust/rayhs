@@ -1,4 +1,5 @@
 module Projection (Projection(..)
+                  , Camera(..)
                   , rayFromPixel ) where
 
 import Vec
@@ -12,21 +13,34 @@ data Projection = Orthographic { width :: Double, height :: Double}
                               , near :: Double }
                   deriving Show
 
-{- Create ray from camera givent the projection -}
-rayFromPixel :: Double -> Double -> Projection
-                -> Double -> Double
-                -> Double -> Double -> Ray
-rayFromPixel w h (Orthographic pw ph) x y ox oy = Ray o (Vec 0 0 1) where
-  o = Vec (apw * (x - (w/2)) / w) (aph * ((-y) + (h/2)) / h) 0
-  aspect = w / h
-  (apw, aph) = if aspect > 1
-               then (pw, pw/aspect)
-               else (aspect*ph, ph)
+data Camera = LookAt { position :: Vec
+                     , target :: Vec
+                     , up :: Vec
+                     , projection :: Projection } deriving Show
 
-rayFromPixel w h (Perspective f pw ph n) x y ox oy = Ray o d where
-  o = Vec (apw * (x - (w/2)) / w) (aph * ((-y) + (h/2)) / h) 0
-  d = normalize $ o - Vec ox oy (-2)
-  aspect = w / h
-  (apw, aph) = if aspect > 1
-               then (pw, pw/aspect)
-               else (aspect*ph, ph)
+rayFromPixel :: Double -> Double -> Camera -> Double -> Double -> Ray
+rayFromPixel w h (LookAt p t up proj) px py = Ray (o+p) d
+  where (Ray o d) = unproject w h proj px py
+
+{- Create ray from camera givent the projection -}
+unproject :: Double -> Double -> Projection
+             -> Double -> Double -> Ray
+unproject w h (Orthographic pw ph) px py = Ray o (Vec 0 0 1)
+  where (apw, aph) = aspectSize w h
+        o = Vec (apw * (px - (w/2)) / w) (aph * ((-py) + (h/2)) / h) 0
+
+
+unproject w h (Perspective fovy pw ph n) px py = Ray o d
+  where f = 0.5 * h / (tan 0.5 * fovy)
+        (apw, aph) = aspectSize w h
+        viewPlanePos = Vec (apw * (px - (w/2)) / w) (aph * ((-py) + (h/2)) / h) f
+        d = normalize viewPlanePos
+        o = Vec 0 0 n
+
+
+aspectSize :: Double -> Double -> (Double, Double)
+aspectSize w h = (apw, aph)
+  where aspect = w / h
+        (apw, aph) = if aspect > 1
+                     then (w, w/aspect)
+                     else (aspect*h, h)

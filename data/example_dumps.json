@@ -25,6 +25,9 @@
 { "type": "flat", "color": { "r":1,"g":2,"b":3 } }
 { "type": "checker", "color1": { "r":1,"g":2,"b":3 }, "color2": { "r":1,"g":2,"b":3 }, "size": 10 }
 
+// Projection
+{ "type": "perspective", "fovy": 0, "width": 2, "height": 2, "near": 0.1 }
+
 // Material
 { "type": "diffuse", "cd": { "type": "flat", "color": { "r":1,"g":2,"b":3 } } }
 { "type": "mirror", "ior": 1 }

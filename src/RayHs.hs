@@ -38,10 +38,15 @@ import qualified Geometry as Geom (intersection)
 
 {- Raytracing -}
 data Rendering = Rendering { scene :: Scene
-                           , projection :: Projection
+                           , camera :: Camera
                            , width :: Int
                            , height :: Int
                            , maxDepth :: Int }
+
+buildRendering :: RenderDesc -> IO Rendering
+buildRendering (RenderDesc sceneDesc proj w h d) = do
+  scene <- buildScene sceneDesc
+  return $ Rendering scene proj w h d
 
 data MatHit = MatHit { position :: !Vec
                      , normal :: !Vec
@@ -148,46 +153,46 @@ traceRay scene depth maxDepth ray@(Ray _ v) =
     Just (MatHit p n uv _ mat) -> irradiance depth maxDepth scene mat v p n uv
     Nothing -> black
 
-tracePixel :: Scene -> Int ->  Double -> Double -> Projection
+tracePixel :: Scene -> Int ->  Double -> Double -> Camera
               -> (Double, Double) -> Color
-tracePixel scene d w h proj (i, j) = traceRay scene 0 d ray
-  where ray = rayFromPixel w h proj i j 0 0
+tracePixel scene d w h cam (i, j) = traceRay scene 0 d ray
+  where ray = rayFromPixel w h cam i j
 
 rayTrace :: Rendering -> Image
-rayTrace (Rendering scene projection w h d) = generatePixels w h
-                                              (tracePixel scene d
-                                               (fromIntegral w)
-                                               (fromIntegral h)
-                                               projection)
+rayTrace (Rendering scene camera w h d) = generatePixels w h
+                                          (tracePixel scene d
+                                           (fromIntegral w)
+                                           (fromIntegral h)
+                                           camera)
 
 {- Distributed ray tracer -}
 average :: [Color] -> Color
 average colors = mul (1.0 / (fromIntegral . length $ colors)) sumc
   where sumc = foldl (+) black colors
 
-distributedTracePixel :: Scene -> Int -> Double -> Double -> Projection
+distributedTracePixel :: Scene -> Int -> Double -> Double -> Camera
                          -> (Double, Double) -> Rnd Color
 distributedTracePixel scene d w h proj (i, j) = do
-  samples <- sampleUniform01 512
+  samples <- sampleUniform01 128
   let pixelSamples = makePixelSamples samples
   let rays = map
-             (\(oi, oj, ci, cj) ->
-               rayFromPixel w h proj (i+oi) (j+oj) (0.05*ci) (0.05*cj))
+             (\(oi, oj) ->
+               rayFromPixel w h proj (i+oi) (j+oj))
              pixelSamples
   let colors = map (traceRay scene 0 d) rays
   return $ average colors
 
-makePixelSamples :: [Double] -> [(Double, Double, Double, Double)]
+makePixelSamples :: [Double] -> [(Double, Double)]
 makePixelSamples [] = []
-makePixelSamples (x:y:z:w:xs) = ((x-0.5, y-0.5, z, w):makePixelSamples xs)
+makePixelSamples (x:y:xs) = ((x-0.5, y-0.5):makePixelSamples xs)
 makePixelSamples _ = []
 
 distributedRayTrace :: Rendering -> Rnd Image
-distributedRayTrace (Rendering scene projection w h d) =
+distributedRayTrace (Rendering scene camera w h d) =
   generatePixelsRnd w h (distributedTracePixel scene d
                          (fromIntegral w)
                          (fromIntegral h)
-                         projection)
+                         camera)
 
 parseFile :: FromJSON a => FilePath -> IO (Maybe a)
 parseFile path = do
@@ -212,18 +217,16 @@ main = do
   args <- getArgs
   case getOpt RequireOrder options args of
     (flags, (fn:_), []) -> do
-      putStrLn $ show flags
       let outFile = case flags of
             [] -> "out.ppm"
             (Output fn:_) -> fn
       putStrLn $ "Loading scene from " ++ fn ++ "..."
-      sceneDesc <- parseFile $ fn
-      case sceneDesc of
+      jobDesc <- parseFile $ fn
+      case jobDesc of
         Nothing -> error "Failed to read scene"
-        Just sd -> do
+        Just jd -> do
           putStrLn $ "Rendering..."
-          scene <- buildScene sd
-          let job = Rendering scene (Perspective 0 2 2 0.1) 512 512 3
+          job <- buildRendering jd
           let simpleRay = rayTrace job
           writePPM outFile simpleRay
           putStrLn $ "Done! Output written to " ++ outFile

@@ -16,13 +16,14 @@ import Vec
 import Color
 import Material
 import Light
+import Projection
 
 instance FromJSON Vec where
   parseJSON (Object v) = Vec <$>
                          v .: "x" <*>
                          v .: "y" <*>
                          v .: "z"
-  parseJSON _ = mempty
+  parseJSON _ = fail "Error reaging Vec"
 
 instance FromJSON Color where
   parseJSON (Object v) = RGB <$>
@@ -68,6 +69,27 @@ instance FromJSON Light where
                  obj .: "radius"
       _ -> fail ("Unknown type for light " ++ kind)
 
+instance FromJSON Projection where
+  parseJSON = withObject "projection" $ \obj -> do
+    kind <- obj .: typeName
+    case kind of
+      "orthographic" -> Orthographic <$> obj .: "width" <*> obj .: "height"
+      "perspective" -> Perspective <$>
+                 obj .: "fovy" <*>
+                 obj .: "width" <*>
+                 obj .: "height" <*>
+                 obj .: "near"
+      _ -> fail ("Unknown type for projection " ++ kind)
+
+instance FromJSON Camera where
+  parseJSON (Object v) = LookAt <$>
+                         v .: "position" <*>
+                         v .: "target" <*>
+                         v .: "up" <*>
+                         v .: "projection"
+  parseJSON _ = mempty
+
+
 instance FromJSON GeometryDesc where
   parseJSON = withObject "geometry" $ \obj -> do
     kind <- ((obj .: typeName) :: Parser String)
@@ -95,6 +117,13 @@ instance FromJSON SceneDesc where
                          v .: "lights"
   parseJSON _ = mempty
 
+instance FromJSON RenderDesc where
+  parseJSON (Object v) = RenderDesc <$>
+                         v .: "scene" <*>
+                         v .: "camera" <*>
+                         v .: "width" <*>
+                         v .: "height" <*>
+                         v .: "maxDepth"
 
 {- encoding -}
 
