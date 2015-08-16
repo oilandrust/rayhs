@@ -5,7 +5,8 @@ module Image (Image(Image)
              , gradient
              , solidImage
              , emptyImage
-             , writePPM) where
+             , writePPM
+             , readPPM) where
 
 import Data.List
 import Data.Vector (Vector, cons, (!), (!?), (//))
@@ -53,6 +54,9 @@ emptyImage w h = solidImage w h black
 toIntC :: Double -> Int
 toIntC c = truncate $ 255 * min c 1
 
+toFloatC :: Int -> Double
+toFloatC c = (fromIntegral c) / 255
+
 formatPixelsPPM :: Image -> String
 formatPixelsPPM (Image w h pix) = concat $ intercalate ["\n"]
                                   [[formatPixel
@@ -69,3 +73,23 @@ writePPM path image = do
                 ++ " " ++ show (height image) ++ "\n255\n"
                 ++ formatPixelsPPM image
   writeFile path content
+
+readWidthAndHeight :: String -> (Int, Int)
+readWidthAndHeight s = (head ints, ints !! 1)
+  where ints = map read (words s)
+
+colors :: [Double] -> [Color]
+colors (r:g:b:rest) = (RGB r g b:colors rest)
+colors _ = []
+
+readPixels :: Int -> Int -> [String] -> Image
+readPixels w h lines = Image w h pixels
+  where pixels = colors $ map (\s -> (read s) / 255) lines
+
+readPPM :: String -> IO Image
+readPPM path = do
+  content <- readFile path
+  let (header, pixels) = splitAt 3 (lines content)
+  let (w, h) = readWidthAndHeight $ header !! 1
+  let maxC = (read $ header !! 2) :: Int
+  return $ readPixels w h (concat $ map words pixels)

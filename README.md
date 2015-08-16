@@ -21,7 +21,7 @@ Currently only ppm file format is suported for output, these files can be opened
 ## Usage
 
 The executable takes a filename as input. The parameter shoud point to a JSON file describing a rendering to perform.
-Example os scenes can be found in the data folder.
+Examples of scenes can be found in the data folder.
 The path to the ouput ppm image can be specified as an option.
 
 ex:

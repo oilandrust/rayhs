@@ -12,9 +12,9 @@ import Data.Monoid
 import Control.Applicative
 
 import Descriptors
+import MaterialDescriptors
 import Vec
 import Color
-import Material
 import Light
 import Projection
 
@@ -36,26 +36,27 @@ instance FromJSON Color where
 typeName :: Text
 typeName = "type"
 
-instance FromJSON ColorMap where
+instance FromJSON ColorMapDesc where
   parseJSON = withObject "colorMap" $ \o -> do
     kind <- o .: typeName
     case kind of
-      "flat" -> Flat <$> o .: "color"
-      "checker" -> CheckerBoard <$>
+      "flat" -> FlatDesc <$> o .: "color"
+      "checker" -> CheckerBoardDesc <$>
                    o .: "color1" <*>
                    o .: "color2" <*>
                    o .: "size"
+      "texture" -> TextureDesc <$> o .: "fileName"
       _ -> fail ("Unknown type for color map " ++ kind)
 
-instance FromJSON Material where
+instance FromJSON MaterialDesc where
   parseJSON = withObject "material" $ \obj -> do
     kind <- obj .: typeName
     case kind of
-      "mirror" -> Mirror <$> obj .: "ior"
-      "diffuse" -> Diffuse <$> obj .: "cd"
-      "plastic" -> Plastic <$> obj .: "cd" <*> obj .: "ior"
-      "emmit" -> Emmit <$> obj .: "ce"
-      "transparent" -> Transparent <$> obj .: "ior"
+      "mirror" -> MirrorDesc <$> obj .: "ior"
+      "diffuse" -> DiffuseDesc <$> obj .: "cd"
+      "plastic" -> PlasticDesc <$> obj .: "cd" <*> obj .: "ior"
+      "emmit" -> EmmitDesc <$> obj .: "ce"
+      "transparent" -> TransparentDesc <$> obj .: "ior"
       _ -> fail ("Unknown type for material " ++ kind)
 
 instance FromJSON Light where
@@ -133,23 +134,23 @@ instance ToJSON Vec where
 instance ToJSON Color where
   toJSON (RGB x y z) = object ["r" .= x, "g" .= y, "b" .= z]
 
-instance ToJSON ColorMap where
-  toJSON (Flat c) = object ["type" .= ("flat" :: Text), "color" .= c]
-  toJSON (CheckerBoard c1 c2 s) = object ["type" .= ("checker" :: Text),
-                                          "color2" .= c2,
-                                          "color1" .= c1,
-                                          "size" .= s]
+instance ToJSON ColorMapDesc where
+  toJSON (FlatDesc c) = object ["type" .= ("flat" :: Text), "color" .= c]
+  toJSON (CheckerBoardDesc c1 c2 s) = object ["type" .= ("checker" :: Text),
+                                              "color2" .= c2,
+                                              "color1" .= c1,
+                                              "size" .= s]
 
-instance ToJSON Material where
-  toJSON (Diffuse cd) = object ["type" .= ("diffuse" :: Text), "cd" .= cd]
-  toJSON (Emmit cd) = object ["type" .= ("emmit" :: Text), "ce" .= cd]
-  toJSON (Plastic cd ior) = object ["type" .= ("plastic" :: Text),
-                                    "cd" .= cd,
+instance ToJSON MaterialDesc where
+  toJSON (DiffuseDesc cd) = object ["type" .= ("diffuse" :: Text), "cd" .= cd]
+  toJSON (EmmitDesc cd) = object ["type" .= ("emmit" :: Text), "ce" .= cd]
+  toJSON (PlasticDesc cd ior) = object ["type" .= ("plastic" :: Text),
+                                        "cd" .= cd,
+                                        "ior" .= ior]
+  toJSON (MirrorDesc ior) = object ["type" .= ("mirror" :: Text),
                                     "ior" .= ior]
-  toJSON (Mirror ior) = object ["type" .= ("mirror" :: Text),
-                                "ior" .= ior]
-  toJSON (Transparent ior) = object ["type" .= ("transparent" :: Text),
-                                     "ior" .= ior]
+  toJSON (TransparentDesc ior) = object ["type" .= ("transparent" :: Text),
+                                         "ior" .= ior]
 
 instance ToJSON Light where
   toJSON (Directional d c) = object ["type" .= ("directional" :: Text),

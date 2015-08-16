@@ -1,6 +1,6 @@
 {
-    "width":512,
-    "height":512,
+    "width":1280,
+    "height":720,
     "maxDepth":3,
     "camera":{
         "position":{"x":0, "y":0, "z":-2},
@@ -63,12 +63,8 @@
             {
                 "material":{
                     "cd":{
-                        "color":{
-                            "g":1,
-                            "b":0.0,
-                            "r":0.0
-                        },
-                        "type":"flat"
+                        "fileName":"data/earth.ppm",
+                        "type":"texture"
                     },
                     "type":"diffuse"
                 },

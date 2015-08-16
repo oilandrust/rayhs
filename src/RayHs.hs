@@ -83,8 +83,7 @@ shadowIntersection scene light ray = case hits of
 inFrontOfLight :: Light -> Ray -> MatHit -> Bool
 inFrontOfLight light (Ray origin _) (MatHit pos _ _ _ _) = case light of
   (Directional _ _) -> True
-  (Point p _ _) -> sqrDist origin  p >
-                   sqrDist pos origin
+  (Point p _ _) -> sqrDist origin p > sqrDist origin pos
 
 accumDiffuse :: [Object] -> [Light] -> Vec -> Vec -> Color -> Color
 accumDiffuse sc lts p n color =

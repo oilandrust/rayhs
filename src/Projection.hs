@@ -35,7 +35,7 @@ unproject w h (Perspective fovy pw ph n) px py = Ray o d
         (apw, aph) = aspectSize w h
         viewPlanePos = Vec (apw * (px - (w/2)) / w) (aph * ((-py) + (h/2)) / h) f
         d = normalize viewPlanePos
-        o = Vec 0 0 n
+        o = Vec ((x viewPlanePos) * n / f) ((y viewPlanePos) * n / f) n
 
 
 aspectSize :: Double -> Double -> (Double, Double)

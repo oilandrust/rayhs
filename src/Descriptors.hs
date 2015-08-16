@@ -6,7 +6,7 @@ module Descriptors (GeometryDesc(..)
 
 import Vec
 import Light
-import Material
+import MaterialDescriptors
 import Geometry
 import Projection
 import Mesh
@@ -29,7 +29,7 @@ data GeometryDesc = MeshDesc { fileName :: String
                               , tangent :: Vec } deriving Show
 
 data ObjectDesc = ObjectDesc { geometry :: GeometryDesc
-                             , material :: Material } deriving Show
+                             , material :: MaterialDesc } deriving Show
 
 data SceneDesc = SceneDesc { objects :: [ObjectDesc]
                            , lights :: [Light] } deriving Show
@@ -40,9 +40,10 @@ buildScene (SceneDesc objectDescs lights) = do
   return $ Scene objects lights
 
 buildObject :: ObjectDesc -> IO Object
-buildObject (ObjectDesc desc mat) = do
-  geometry <- buildGeometry desc
-  return $ Object geometry mat
+buildObject (ObjectDesc objDesc matDesc) = do
+  geometry <- buildGeometry objDesc
+  material <- buildMaterial matDesc
+  return $ Object geometry material
 
 buildGeometry :: GeometryDesc -> IO Geometry
 buildGeometry (PlaneDesc p n t) = return (geom $ Plane p n t)
