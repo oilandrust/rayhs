@@ -97,6 +97,7 @@ mapTriangles f mesh = map f (triangles mesh)
 transformVertices :: (Vertex -> Vertex) -> Mesh -> Mesh
 transformVertices f mesh = Mesh (V.map f (vertices mesh)) (indices mesh)
 
+
 {- Obj Loading -}
 
 {-  Obj vertices can be Position, Normal or Texture Coord (not supported yet)

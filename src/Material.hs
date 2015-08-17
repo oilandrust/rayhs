@@ -1,6 +1,4 @@
-module Material (ColorMap(..)
-                , Material(..)
-                , colorAt
+module Material (Material(..)
                 , r0
                 , fresnel
                 , diffuse) where
@@ -8,28 +6,9 @@ module Material (ColorMap(..)
 import Data.Fixed
 
 import Color
+import ColorMap
 import Math
 import Vec
-import Image
-
-data ColorMap = Flat { color :: !Color }
-              | CheckerBoard { color1 :: !Color
-                             , color2 :: !Color
-                             , size :: !Double }
-              | Texture { image :: Image }
-              deriving Show
-
-colorAt :: ColorMap -> UV -> Color
-{-# INLINE colorAt #-}
-colorAt (Flat color) _ = color
-colorAt (CheckerBoard c0 c1 scale) (UV u v) =
-  if (mod' u scale - (0.5*scale)) * (mod' v scale - (0.5*scale)) < 0
-  then c0
-  else c1
-
-colorAt (Texture (Image w h pixels)) (UV u v) = pixels !! (ui + w * vi)
-  where ui = truncate $ (mod' u 1) * (fromIntegral w)
-        vi = truncate $ (mod' v 1) * (fromIntegral h)
 
 data Material = Mirror { ior :: !Double }
               | Diffuse { cd :: !ColorMap }

@@ -63,8 +63,12 @@
             {
                 "material":{
                     "cd":{
-                        "fileName":"data/earth.ppm",
-                        "type":"texture"
+                        "color":{
+                            "g":1,
+                            "b":0.0,
+                            "r":0.0
+                        },
+                        "type":"flat"
                     },
                     "type":"diffuse"
                 },

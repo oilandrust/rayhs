@@ -20,6 +20,7 @@ import System.Random
 
 import Math
 import Color
+import ColorMap
 import Image
 import Vec hiding (o)
 import Material

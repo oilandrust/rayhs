@@ -5,7 +5,8 @@ module MaterialDescriptors (MaterialDesc(..)
 
 import Material
 import Color
-import Image
+import ColorMap
+import Bitmap
 
 data MaterialDesc = MirrorDesc { ior :: Double }
                   | DiffuseDesc { cd :: ColorMapDesc }
