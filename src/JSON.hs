@@ -99,8 +99,8 @@ instance FromJSON GeometryDesc where
                   obj .: "center" <*>
                   obj .: "radius"
       "plane" -> PlaneDesc <$>
-                 obj .: "point" <*>
                  obj .: "normal" <*>
+                 obj .: "point" <*>
                  obj .: "tangent"
       "mesh" -> MeshDesc <$>
                 obj .: "fileName" <*>
