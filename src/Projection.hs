@@ -3,6 +3,7 @@ module Projection (Projection(..)
                   , rayFromPixel ) where
 
 import Vec
+import Transform
 import Geometry (Ray(..))
 
 {- Projection -}
@@ -21,6 +22,7 @@ data Camera = LookAt { position :: Vec
 rayFromPixel :: Double -> Double -> Camera -> Double -> Double -> Ray
 rayFromPixel w h (LookAt p t up proj) px py = Ray (o+p) d
   where (Ray o d) = unproject w h proj px py
+        mat = lookAt p t up
 
 {- Create ray from camera givent the projection -}
 unproject :: Double -> Double -> Projection
@@ -35,7 +37,7 @@ unproject w h (Perspective fovy pw ph n) px py = Ray o d
         (apw, aph) = aspectSize w h
         viewPlanePos = Vec (apw * (px - (w/2)) / w) (aph * ((-py) + (h/2)) / h) f
         d = normalize viewPlanePos
-        o = Vec ((x viewPlanePos) * n / f) ((y viewPlanePos) * n / f) n
+        o = Vec.o --Vec ((x viewPlanePos) * n / f) ((y viewPlanePos) * n / f) n
 
 
 aspectSize :: Double -> Double -> (Double, Double)

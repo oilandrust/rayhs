@@ -2,7 +2,7 @@
 if [ $? -eq 0 ]; then
     echo "Compilation succeded, rendering..."
     time ./rayhs -otexture.ppm data/texture.json
-    open out.ppm
+    open texture.ppm
     time ./rayhs -ooutScene.ppm data/outScene.json
     open outScene.ppm
     time ./rayhs -ocornell.ppm data/cornellBox.json
