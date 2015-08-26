@@ -31,10 +31,13 @@
 	            },
 	            "geometry":{
 	                "type":"mesh",
-	                "translation":{
-	                    "z":0.5,
-	                    "x":0.0,
-	                    "y":-1
+			"transform":{
+			    "type":"translate",
+	                    "vector":{
+				"z":0.5,
+				"x":0.0,
+				"y":-1
+			    }
 	                },
 	                "fileName":"data/dragon_superlow.obj"
 	            }

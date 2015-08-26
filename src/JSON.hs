@@ -17,6 +17,7 @@ import Vec
 import Color
 import Light
 import Projection
+import Transform
 
 instance FromJSON Vec where
   parseJSON (Object v) = Vec <$>
@@ -82,6 +83,19 @@ instance FromJSON Projection where
                  obj .: "near"
       _ -> fail ("Unknown type for projection " ++ kind)
 
+instance FromJSON Transform where
+  parseJSON = withObject "transform" $ \obj -> do
+    kind <- obj .: typeName
+    case kind of
+      "scale" -> Scale <$> obj .: "vector"
+      "translate" -> Translate <$> obj .: "vector"
+      "rotateX" -> RotateX <$> obj .: "angle"
+      "rotateY" -> RotateY <$> obj .: "angle"
+      "rotateZ" -> RotateZ <$> obj .: "angle"
+      "rotate" -> Rotate <$> obj .: "axis" <*> obj .: "angle"
+      "sequence" -> Sequence <$> obj .: "transforms"
+      _ -> fail ("Unknown type for transform " ++ kind)
+
 instance FromJSON Camera where
   parseJSON (Object v) = LookAt <$>
                          v .: "position" <*>
@@ -104,7 +118,7 @@ instance FromJSON GeometryDesc where
                  obj .: "tangent"
       "mesh" -> MeshDesc <$>
                 obj .: "fileName" <*>
-                obj .: "translation"
+                obj .: "transform"
 
 instance FromJSON ObjectDesc where
   parseJSON (Object v) = ObjectDesc <$>
@@ -126,7 +140,7 @@ instance FromJSON RenderDesc where
                          v .: "height" <*>
                          v .: "maxDepth"
 
-{- encoding -}
+{- encoding
 
 instance ToJSON Vec where
   toJSON (Vec x y z) = object ["x" .= x, "y" .= y, "z" .= z]
@@ -180,3 +194,4 @@ instance ToJSON ObjectDesc where
 instance ToJSON SceneDesc where
   toJSON (SceneDesc objs lights) = object ["objects" .= objs,
                                            "lights" .= lights]
+-}

@@ -4,10 +4,12 @@ module Mesh (Mesh(..)
             , triangleIntersection
             , triangles
             , readOBJ
-            , translate) where
+            , translate
+            , Mesh.transform) where
 
 import Vec
 import Geometry
+import Transform as T
 
 import Data.List
 import Data.List.Split
@@ -83,6 +85,21 @@ translate :: Mesh -> Vec -> Mesh
 translate mesh t = transformVertices
                    (\(Vertex p n uv) -> Vertex (p+t) n uv)
                    mesh
+
+transform :: Mesh -> T.Transform -> Mesh
+transform mesh trans@(Translate _) = transformVertices
+                                     (\(Vertex p n uv) ->
+                                       Vertex (T.transform trans p)
+                                       n
+                                       uv)
+                                     mesh
+transform mesh trans = transformVertices
+                       (\(Vertex p n uv) ->
+                         Vertex (T.transform trans p)
+                         (T.transform trans n)
+                         uv)
+                       mesh
+
 
 {- Mapping functions -}
 triangles :: Mesh -> [Triangle]

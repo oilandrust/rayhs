@@ -9,9 +9,11 @@ import Light
 import MaterialDescriptors
 import Geometry
 import Projection
-import Mesh
+import Mesh hiding (transform)
+import qualified Mesh
 import Scene
 import KDTree
+import Transform hiding (transform)
 
 {- Scene Descriptor -}
 data RenderDesc = RenderDesc { scene :: SceneDesc
@@ -21,7 +23,7 @@ data RenderDesc = RenderDesc { scene :: SceneDesc
                              , maxDepth :: Int }
 
 data GeometryDesc = MeshDesc { fileName :: String
-                             , translation :: Vec }
+                             , transform :: Transform }
                   | SphereDesc { center :: Vec
                                , radius :: Double }
                   | PlaneDesc { normal :: Vec
@@ -48,6 +50,6 @@ buildObject (ObjectDesc objDesc matDesc) = do
 buildGeometry :: GeometryDesc -> IO Geometry
 buildGeometry (PlaneDesc p n t) = return (geom $ Plane p n t)
 buildGeometry (SphereDesc c r) = return (geom $ Sphere c r)
-buildGeometry (MeshDesc filename pos) = do
+buildGeometry (MeshDesc filename trans) = do
   mesh <- readOBJ filename
-  return (geom $ buildKDTree (translate mesh pos))
+  return (geom $ buildKDTree (Mesh.transform mesh trans))

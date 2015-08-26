@@ -1,0 +1,71 @@
+{
+    "width":512,
+    "height":512,
+    "maxDepth":3,
+    "camera":{
+        "position":{"x":0, "y":0, "z":-3},
+        "target":{"x":0, "y":0, "z":0},
+        "up":{"x":0, "y":1, "z":0},
+        "projection":{
+            "type":"perspective",
+            "fovy":0.9272952180016123,
+            "width":2,
+            "height":2,
+            "near": 0.1
+        }
+    },
+    "scene":{
+        "objects":[
+            {
+                "material":{
+                    "cd":{
+                        "color":{
+                            "g":1,
+                            "b":1,
+                            "r":1
+                        },
+                        "type":"flat"
+                    },
+                    "type":"diffuse"
+                },
+                "geometry":{
+                    "type":"mesh",
+		    "transform": {
+			"type":"rotateY",
+			"angle":1.0
+		    },
+                    "fileName":"data/cone.obj"
+                }
+            }
+        ],
+        "lights":[
+	    {
+                "color":{
+                    "g":1,
+                    "b":1,
+                    "r":1
+                },
+                "type":"directional",
+                "direction":{
+                    "x":0.0,
+                    "y":-1.0,
+                    "z":1.0
+                }
+            },
+	    {
+                "color":{
+                    "g":1,
+                    "b":1,
+                    "r":1
+                },
+                "type":"directional",
+                "direction":{
+                    "x":0.0,
+                    "y":-1.0,
+                    "z":-1.0
+                }
+            }
+
+        ]
+    }
+}

@@ -91,11 +91,14 @@
                 "geometry":{
                     "type":"mesh",
                     "fileName":"data/uvtorus.obj",
-                    "translation":{
-                        "z":0.5,
-                        "x":-0.4,
-                        "y":-1
-                    }
+		    "transform":{
+			"type":"translate",
+			"vector":{
+                            "z":0.5,
+                            "x":-0.4,
+                            "y":-1
+			}
+		    }
                 }
             }
         ],

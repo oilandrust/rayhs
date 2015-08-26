@@ -3,7 +3,7 @@ module Projection (Projection(..)
                   , rayFromPixel ) where
 
 import Vec
-import Transform
+import Mat
 import Geometry (Ray(..))
 
 {- Projection -}
@@ -20,7 +20,7 @@ data Camera = LookAt { position :: Vec
                      , projection :: Projection } deriving Show
 
 rayFromPixel :: Double -> Double -> Camera -> Double -> Double -> Ray
-rayFromPixel w h (LookAt p t up proj) px py = Ray (o+p) (transform mat d)
+rayFromPixel w h (LookAt p t up proj) px py = Ray (o+p) (apply mat d)
   where (Ray o d) = unproject w h proj px py
         mat = lookAt p t up
 

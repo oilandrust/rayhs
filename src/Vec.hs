@@ -21,7 +21,8 @@ module Vec (Vec (..)
            , maxV
            , toRGB
            , fromRGB
-           , fromList) where
+           , fromList
+           , orthonormal) where
 
 import Color
 
@@ -145,6 +146,16 @@ minV (Vec a b c) (Vec x y z) = Vec (min a x) (min b y) (min c z)
 maxV :: Vec -> Vec -> Vec
 {-# INLINE maxV #-}
 maxV (Vec a b c) (Vec x y z) = Vec (max a x) (max b y) (max c z)
+
+{- Make a orthonormal bais -}
+orthonormal :: Vec -> (Vec, Vec, Vec)
+orthonormal r = (r, s, t)
+  where s = if abs (x r) < abs (y r) && abs (x r) < abs (z r)
+            then normalize $ Vec 0 (-(z r)) (y r)
+            else if abs (y r) < abs (x r) && abs (y r) < abs (z r)
+                 then normalize $ Vec (-(z r)) 0 (x r)
+                 else normalize $ Vec (-(y r)) (x r) 0
+        t = cross r s
 
 {- Type conversions -}
 fromList :: [Double] -> Vec
